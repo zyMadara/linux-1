@@ -531,6 +531,56 @@ static void vh264_ppmgr_reset(void)
 	pr_info("vh264dec: vf_ppmgr_reset\n");
 }
 #endif
+static int get_max_dpb_size(int level_idc, int mb_width, int mb_height)
+{
+	int size, r;
+	switch (level_idc) {
+	case 10:
+		r = 1485;
+		break;
+	case 11:
+		r = 3375;
+		break;
+	case 12:
+	case 13:
+	case 20:
+		r = 8910;
+		break;
+	case 21:
+		r = 17820;
+		break;
+	case 22:
+	case 30:
+		r = 30375;
+		break;
+	case 31:
+		r = 67500;
+		break;
+	case 32:
+		r = 76800;
+		break;
+	case 40:
+	case 41:
+	case 42:
+		r = 122880;
+		break;
+	case 50:
+		r = 414000;
+		break;
+	case 51:
+	case 52:
+		r = 691200;
+		break;
+	default:
+		return 0;
+	}
+	size = (mb_width * mb_height + (mb_width * mb_height / 2)) * 256 * 10;
+	r = (r * 1024 + size-1) / size;
+	r = min(r, 16);
+	pr_info("max_dpb %d size:%d\n", r, size);
+	return r;
+}
+
 
 static int vh264_set_params(void)
 {
@@ -541,7 +591,7 @@ static int vh264_set_params(void)
 	unsigned int post_canvas;
 	unsigned int frame_mbs_only_flag;
 	unsigned int chroma_format_idc, chroma444;
-	unsigned int crop_infor, crop_bottom, crop_right;
+	unsigned int crop_infor, crop_bottom, crop_right, level_idc = 0;
 
 	post_canvas = get_post_canvas();
 
@@ -551,6 +601,7 @@ static int vh264_set_params(void)
 	aspect_ratio_info = READ_VREG(AV_SCRATCH_3);
 	num_units_in_tick = READ_VREG(AV_SCRATCH_4);
 	time_scale = READ_VREG(AV_SCRATCH_5);
+	level_idc = READ_VREG(AV_SCRATCH_A);
 	mb_total = (mb_width >> 8) & 0xffff;
 	max_reference_size = (mb_width >> 24) & 0x7f;
 	mb_mv_byte = (mb_width & 0x80000000) ? 24 : 96;
@@ -613,7 +664,7 @@ static int vh264_set_params(void)
 		 frame_mbs_only_flag, crop_bottom, frame_height);
 		pr_info
 		("mb_height %d,crop_right %d, frame_width %d, mb_width %d\n",
-		 mb_height, crop_right, frame_width, mb_height);
+		 mb_height, crop_right, frame_width, mb_width);
 
 		if (frame_height == 1088)
 			frame_height = 1080;
@@ -629,7 +680,7 @@ static int vh264_set_params(void)
 		return -1;
 	}
 
-	max_dpb_size =
+/*	max_dpb_size =
 		(frame_buffer_size - mb_total * 384 * 4 -
 		 mb_total * mb_mv_byte) /
 		(mb_total * 384 + mb_total * mb_mv_byte);
@@ -686,6 +737,22 @@ static int vh264_set_params(void)
 						 mb_mv_byte);
 		}
 	}
+*/
+	/* max_reference_size <= max_dpb_size <= actual_dpb_size */
+	actual_dpb_size = (frame_buffer_size -
+		mb_total * mb_mv_byte *
+		max_reference_size) / (mb_total * 384);
+	actual_dpb_size = min(actual_dpb_size, 24);
+	max_dpb_size = get_max_dpb_size(level_idc, mb_width, mb_height);
+	if (max_dpb_size == 0)
+		max_dpb_size = actual_dpb_size;
+	else
+		max_dpb_size = min(max_dpb_size, actual_dpb_size);
+
+	max_reference_size = min(max_reference_size, actual_dpb_size-1);
+	max_dpb_size = max(max_reference_size, max_dpb_size);
+	max_reference_size++;
+
 
 	if (!(READ_VREG(AV_SCRATCH_F) & 0x1)) {
 		addr = buf_start;

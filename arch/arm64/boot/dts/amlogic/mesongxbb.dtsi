@@ -253,6 +253,10 @@
 		in_base_func = <0x82000020>;
 		out_base_func = <0x82000021>;
 	};
+	secos {
+		compatible = "aml,secos";
+		memory-region = <&secos_reserved>;
+	};
 	securitykey {
 		compatible = "aml, securitykey";
 		storage_query = <0x82000060>;

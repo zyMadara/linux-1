@@ -256,7 +256,24 @@ void aml_hw_iec958_init(struct snd_pcm_substream *substream)
 	       runtime->rate, sample_rate);
 	/* int srate; */
 	/* srate = params_rate(params); */
-	aml_set_spdif_clk(runtime->rate * 512, 0);
+	if (old_samplerate != sample_rate)
+		aml_set_spdif_clk(runtime->rate * 512, 0);
+	/* Todo, div can be changed, for most case, div = 2 */
+	/* audio_set_spdif_clk_div(); */
+	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
+	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
+	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
+		pr_info("set 4x audio clk for 958\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
+	} else if (0) {
+		pr_info("share the same clock\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
+	} else {
+		pr_info("set normal 512 fs /4 fs\n");
+		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
+	}
+	/* enable 958 divider */
+	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 	audio_util_set_dac_958_format(AUDIO_ALGOUT_DAC_FORMAT_DSP);
 	/*clear the same source function as new raw data output */
 	audio_i2s_958_same_source(0);
@@ -532,22 +549,6 @@ int aml_set_spdif_clk(unsigned long rate, bool src_i2s)
 		}
 	}
 
-	/* Todo, div can be changed, for most case, div = 2 */
-	/* audio_set_spdif_clk_div(); */
-	/* 958 divisor: 0=no div; 1=div by 2; 2=div by 3; 3=div by 4. */
-	if (IEC958_mode_codec == 4  || IEC958_mode_codec == 5 ||
-	IEC958_mode_codec == 7 || IEC958_mode_codec == 8) {
-		pr_info("set 4x audio clk for 958\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 0 << 4);
-	} else if (src_i2s) {
-		pr_info("share the same clock\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 1 << 4);
-	} else {
-		pr_info("set normal 512 fs /4 fs\n");
-		aml_cbus_update_bits(AIU_CLK_CTRL, 3 << 4, 3 << 4);
-	}
-	/* enable 958 divider */
-	aml_cbus_update_bits(AIU_CLK_CTRL, 1 << 1, 1 << 1);
 	return 0;
 }
 

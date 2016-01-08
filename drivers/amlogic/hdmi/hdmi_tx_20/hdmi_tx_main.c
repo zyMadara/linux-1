@@ -137,7 +137,16 @@ static void hdmitx_early_suspend(struct early_suspend *h)
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_AVI_PACKET, 0);
 	phdmi->HWOp.CntlConfig(&hdmitx_device, CONF_CLR_VSDB_PACKET, 0);
 	hdmi_print(IMP, SYS "HDMITX: early suspend\n");
-	phdmi->HWOp.CntlMisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
+}
+
+static int hdmitx_is_hdmi_vmode(char *mode_name)
+{
+	enum hdmi_vic vic = hdmitx_edid_vic_tab_map_vic(mode_name);
+
+	if (vic == HDMI_Unkown)
+		return 0;
+
+	return 1;
 }
 
 static void hdmitx_late_resume(struct early_suspend *h)
@@ -153,6 +162,10 @@ static void hdmitx_late_resume(struct early_suspend *h)
 		hdmitx_device.HWOp.CntlConfig(&hdmitx_device,
 			CONF_VIDEO_BLANK_OP, VIDEO_BLANK);
 	}
+
+	if (1 == hdmitx_is_hdmi_vmode(info->name))
+		phdmi->HWOp.CntlMisc(&hdmitx_device, MISC_HPLL_FAKE, 0);
+
 	phdmi->hpd_lock = 0;
 
 	/* update status for hpd and switch/state */

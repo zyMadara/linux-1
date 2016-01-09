@@ -289,8 +289,7 @@ static int __init meson_pm_probe(struct platform_device *pdev)
 	writel(0x0, debug_reg);
 	device_create_file(&pdev->dev, &dev_attr_time_out);
 	device_create_file(&pdev->dev, &dev_attr_suspend_reason);
-	dev_set_name(&pdev->dev, "%s", "aml_pm");
-	pdev->name = dev_name(&pdev->dev);
+	device_rename(&pdev->dev, "aml_pm");
 	pr_info("meson_pm_probe done\n");
 	return 0;
 }

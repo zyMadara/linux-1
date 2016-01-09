@@ -1154,8 +1154,7 @@ static int dwc_otg_driver_probe(struct platform_device *pdev)
 	*/
 	dwc_otg_attr_create(pdev);
 	sys_name[5] += pdev->id;
-	dev_set_name(&pdev->dev, "%s", sys_name);
-	pdev->name = dev_name(&pdev->dev);
+	device_rename(&pdev->dev, sys_name);
 
 	/*
 	* Disable the global interrupt until all the interrupt

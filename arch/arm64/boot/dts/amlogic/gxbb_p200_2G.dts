@@ -775,6 +775,7 @@
 
 	dwc2_b {
 		compatible = "amlogic,dwc2";
+		device_name = "dwc2_b";
 		reg = <0x0 0xc9100000 0x0 0x40000>;
 		interrupts = <0 31 4>;
 		status = "okay";
@@ -802,6 +803,7 @@
 
 	dwc2_a {
 		compatible = "amlogic,dwc2";
+		device_name = "dwc2_a";
 		reg = <0x0 0xc9000000 0x0 0x40000>;
 		interrupts = <0 30 4>;
 		status = "okay";
@@ -948,7 +950,7 @@
 	amlogic_thermals:amlogic_thermals{
 		compatible = "amlogic, amlogic-thermal";
 		#thermal-cells = <7>;
-		dev_name = "aml_thermal";
+		device_name = "thermal";
 		trip_point = <70 1536001 1536001  511  511    3    2
 			      80 1296001 1296001  435  435    2    1
 			      90 1032001 1032001  328  328    2    1

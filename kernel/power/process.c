@@ -17,6 +17,7 @@
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/wakelock.h>
+#include <linux/kmod.h>
 
 /* 
  * Timeout for stopping processes
@@ -152,6 +153,10 @@ int freeze_processes(void)
 {
 	int error;
 
+	error = __usermodehelper_disable(UMH_FREEZING);
+	if (error)
+		return error;
+
 	printk("Freezing user space processes ... ");
 	error = try_to_freeze_tasks(true);
 	if (error)
@@ -164,6 +169,7 @@ int freeze_processes(void)
 		goto Exit;
 	printk("done.");
 
+	__usermodehelper_set_disable_depth(UMH_DISABLED);
 	oom_killer_disable();
  Exit:
 	BUG_ON(in_atomic());
@@ -200,6 +206,8 @@ void thaw_processes(void)
 	thaw_workqueues();
 	thaw_tasks(true);
 	thaw_tasks(false);
+	usermodehelper_enable();
+
 	schedule();
 	printk("done.\n");
 }

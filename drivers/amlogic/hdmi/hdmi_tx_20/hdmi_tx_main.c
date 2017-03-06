@@ -2503,7 +2503,7 @@ static int amhdmitx_resume(struct platform_device *pdev)
 }
 #endif
 
-#ifdef CONFIG_INSTABOOT
+#if defined(CONFIG_HIBERNATION) || defined(CONFIG_INSTABOOT)
 static unsigned char __nosavedata EDID_buf_save[EDID_MAX_BLOCK * 128];
 static unsigned char __nosavedata EDID_buf1_save[EDID_MAX_BLOCK * 128];
 static unsigned char __nosavedata EDID_hash_save[20];
@@ -2567,7 +2567,7 @@ static const struct dev_pm_ops amhdmitx_pm = {
 	.freeze		= amhdmitx_freeze,
 	.restore	= amhdmitx_restore,
 };
-#endif
+#endif /* HIBERNATION || INSTABOOT */
 
 #ifdef CONFIG_OF
 static const struct of_device_id meson_amhdmitx_dt_match[] = {
@@ -2590,7 +2590,7 @@ static struct platform_driver amhdmitx_driver = {
 		.name   = DEVICE_NAME,
 		.owner	= THIS_MODULE,
 		.of_match_table = meson_amhdmitx_dt_match,
-#ifdef CONFIG_HIBERNATION
+#if defined(CONFIG_HIBERNATION) || defined(CONFIG_INSTABOOT)
 		.pm	= &amhdmitx_pm,
 #endif
 	}

@@ -41,7 +41,7 @@
 	(((txsz) & CMD_DATA_SIZE_MASK) << CMD_DATA_SIZE_SHIFT))
 
 #define MAX_DVFS_DOMAINS	3
-#define MAX_DVFS_OPPS		8
+#define MAX_DVFS_OPPS		16
 #define DVFS_LATENCY(hdr)	((hdr) >> 16)
 #define DVFS_OPP_COUNT(hdr)	(((hdr) >> 8) & 0xff)
 
@@ -285,6 +285,9 @@ struct scpi_opp *scpi_dvfs_get_opps(u8 domain)
 		return ERR_PTR(-ENOMEM);
 
 	count = DVFS_OPP_COUNT(buf.header);
+	if (count > MAX_DVFS_OPPS)
+		count = MAX_DVFS_OPPS;
+
 	opps_sz = count * sizeof(*(opps->opp));
 
 	opps->count = count;

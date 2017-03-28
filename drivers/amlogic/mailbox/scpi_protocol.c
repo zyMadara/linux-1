@@ -131,6 +131,9 @@ static int high_priority_cmds[] = {
 
 static struct scpi_opp *scpi_opps[MAX_DVFS_DOMAINS];
 
+/* default max freq: 1.536 GHz */
+static unsigned long scpi_max_freq = 1536000;
+
 static int scpi_linux_errmap[SCPI_ERR_MAX] = {
 	0, -EINVAL, -ENOEXEC, -EMSGSIZE,
 	-EINVAL, -EACCES, -ERANGE, -ETIMEDOUT,
@@ -288,6 +291,21 @@ struct scpi_opp *scpi_dvfs_get_opps(u8 domain)
 	if (count > MAX_DVFS_OPPS)
 		count = MAX_DVFS_OPPS;
 
+	/* filting freq higher than max_freq */
+	if (scpi_max_freq > 0) {
+		int i;
+		for (i = 0; i < count; i++) {
+			if (buf.opp[i].freq_hz > (scpi_max_freq * 1000))
+				break;
+		}
+		count = i;
+	} else {
+		scpi_max_freq = buf.opp[count-1].freq_hz / 1000;
+	}
+
+	pr_info("scpi: dvfs opp count %d, max freq %ld khz\n",
+		count, scpi_max_freq);
+
 	opps_sz = count * sizeof(*(opps->opp));
 
 	opps->count = count;
@@ -419,3 +437,14 @@ int scpi_get_sensor_value(u16 sensor, u32 *val)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(scpi_get_sensor_value);
+
+static int __init scpi_setup_max_freq(char *str)
+{
+	int ret;
+
+	if (str)
+		ret = kstrtoul(str, 0, &scpi_max_freq);
+
+	return 0;
+}
+__setup("max_freq=", scpi_setup_max_freq);

@@ -30,6 +30,8 @@
 #include <asm/compiler.h>
 #ifndef CONFIG_ARM64
 #include <asm/opcodes-sec.h>
+#else
+#include <asm/psci.h>
 #endif
 #if 0
 void meson_regmap_lock(void *p)
@@ -208,7 +210,6 @@ int aml_read_vcbus(unsigned int reg)
 }
 EXPORT_SYMBOL(aml_read_vcbus);
 
-
 void aml_write_vcbus(unsigned int reg, unsigned int val)
 {
 	int ret;
@@ -293,33 +294,18 @@ static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
 	return function_id;
 }
 #else
-static noinline int __invoke_sec_fn_smc(u32 function_id, u32 arg0, u32 arg1,
-					 u32 arg2)
-{
-	asm volatile(
-			__asmeq("%0", "x0")
-			__asmeq("%1", "x1")
-			__asmeq("%2", "x2")
-			__asmeq("%3", "x3")
-			"smc	#0\n"
-		: "+r" (function_id)
-		: "r" (arg0), "r" (arg1), "r" (arg2));
-
-	return function_id;
-}
+#define __invoke_sec_fn_smc	__invoke_psci_fn_smc
 #endif
 
-int  aml_read_sec_reg(unsigned int reg)
+int aml_read_sec_reg(unsigned int reg)
 {
 	return __invoke_sec_fn_smc(0x82000035, reg, 0, 0);
 }
 
-void  aml_write_sec_reg(unsigned int reg, unsigned int val)
+void aml_write_sec_reg(unsigned int reg, unsigned int val)
 {
 	 __invoke_sec_fn_smc(0x82000036, reg, val, 0);
 }
-
-
 
 static int iomap_probe(struct platform_device *pdev)
 {
@@ -354,7 +340,6 @@ static int iomap_probe(struct platform_device *pdev)
 	pr_info("amlogic iomap probe done\n");
 	return 0;
 }
-
 
 
 static  struct platform_driver iomap_platform_driver = {

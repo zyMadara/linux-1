@@ -1198,9 +1198,8 @@ int amlnand_phydev_init(struct amlnand_chip *aml_chip)
 		phydev->priv = aml_chip;
 
 		dev_para = &(config->dev_para[i]);
-		memcpy(&phydev->name,
-			&dev_para->name,
-			MAX_DEVICE_NAME_LEN*sizeof(char));
+		memcpy((void *)&phydev->name,
+			&dev_para->name, MAX_DEVICE_NAME_LEN*sizeof(char));
 
 		/* set default parameter */
 		phydev->writesize = flash->pagesize;

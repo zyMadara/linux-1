@@ -138,6 +138,10 @@
 	};
 };
 
+&i2s2 {
+	status = "okay";
+};
+
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir_pins_a>;
@@ -195,6 +199,10 @@
 
 &reg_usb0_vbus {
 	gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
+	status = "okay";
+};
+
+&sound_hdmi {
 	status = "okay";
 };
 

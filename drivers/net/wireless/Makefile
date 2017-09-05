@@ -55,9 +55,14 @@ obj-$(CONFIG_WL_TI)	+= ti/
 
 obj-$(CONFIG_MWIFIEX)	+= mwifiex/
 
+ifneq ($(CONFIG_BCM4343),)
+obj-$(CONFIG_BCM4343)	+= bcmdhd/
+else
+obj-$(CONFIG_BCM43455)	+= bcmdhd/
+endif
+
 obj-$(CONFIG_BRCMFMAC)	+= brcm80211/
 obj-$(CONFIG_BRCMSMAC)	+= brcm80211/
-obj-$(CONFIG_BCM43455)	+= bcmdhd/
 
 obj-$(CONFIG_MRVL_WL_SD8977)  += sd8977/
 

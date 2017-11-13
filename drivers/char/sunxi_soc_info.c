@@ -49,9 +49,9 @@ ssize_t sys_info_show(struct class *class, struct class_attribute *attr, char *b
     size += sprintf(buf + size, "sunxi_batchno     : unsupported\n");
 
     /* Board vendor id*/
-    if (!strcasecmp("FriendlyARM NanoPi Duo", dt_machine_name))
+    if (!strcasecmp("FriendlyElec NanoPi-Duo", dt_machine_name))
     	size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_DUO);
-    else if (!strcasecmp("FriendlyARM NanoPi NEO Core", dt_machine_name))
+    else if (!strcasecmp("FriendlyElec NanoPi-NEO-Core", dt_machine_name))
     	size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_NEO_CORE);
     else {
     	databuf[0] = sunxi_get_board_vendor_id();

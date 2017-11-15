@@ -657,7 +657,7 @@ static int sun8i_dwmac_set_syscon(struct stmmac_priv *priv)
 			reg &= ~H3_EPHY_SHUTDOWN;
 			dev_dbg(priv->device, "Select internal_phy %x\n", reg);
 
-			if (of_property_read_bool(priv->plat->phy_node,
+			if (of_property_read_bool(node,
 						  "allwinner,leds-active-low"))
 				reg |= H3_EPHY_LED_POL;
 			else

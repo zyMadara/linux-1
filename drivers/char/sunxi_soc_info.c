@@ -28,7 +28,8 @@ static unsigned int sunxi_get_board_vendor_id(void)
     return vid_val;
 }
 
-ssize_t sys_info_show(struct class *class, struct class_attribute *attr, char *buf)
+static ssize_t sys_info_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
 {
     int databuf[4];
     size_t size = 0;
@@ -66,15 +67,26 @@ ssize_t sys_info_show(struct class *class, struct class_attribute *attr, char *b
     return size;
 }
 
-static struct class_attribute info_class_attrs[] = {
-    __ATTR(sys_info, 0644, sys_info_show, NULL),
-    __ATTR_NULL,
+static DEVICE_ATTR_RO(sys_info);
+
+static struct attribute *sys_info_attrs[] = {
+	&dev_attr_sys_info.attr,
+	NULL,
+};
+
+static const struct attribute_group sys_info_group = {
+	.attrs = sys_info_attrs,
+};
+
+const struct attribute_group *sys_info_groups[] = {
+	&sys_info_group,
+	NULL,
 };
 
 static struct class info_class = {
     .name           = "sunxi_info",
     .owner          = THIS_MODULE,
-    .class_attrs    = info_class_attrs,
+    .dev_groups	= sys_info_groups,
 };
 
 static int __init sunxi_info_init(void)

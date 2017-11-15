@@ -29,12 +29,14 @@
 #define CLK_PLL_VIDEO		6
 #define CLK_PLL_VE		7
 #define CLK_PLL_DDR		8
-#define CLK_PLL_PERIPH0		9
+
+/* PLL_PERIPH0 exported for PRCM */
+
 #define CLK_PLL_PERIPH0_2X	10
 #define CLK_PLL_GPU		11
 #define CLK_PLL_PERIPH1		12
 
-/* The CPUX clock is exported */
+/* The PLL_DE and CPUX clocks is exported */
 
 #define CLK_AXI			15
 #define CLK_AHB1		16

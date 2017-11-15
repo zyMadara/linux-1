@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 James Pettigrew <james@innovum.com.au>
+ * Copyright (C) 2017 Jelle van der Waa <jelle@vdwaa.nl>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -40,7 +40,11 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+/dts-v1/;
 #include "sun8i-h3-nanopi.dtsi"
+#include "sunxi-common-regulators.dtsi"
+
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "FriendlyElec NanoPi-NEO-Air";

@@ -60,12 +60,23 @@
 	};
 
 	aliases {
-		serial0 = &uart0;
 		ethernet0 = &emac;
+		serial0 = &uart0;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
 	};
 
 	leds {
@@ -88,9 +99,19 @@
 
 		sw4 {
 			label = "sw4";
-			linux,code = <BTN_0>;
+			linux,code = <KEY_POWER>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
 		};
+	};
+
+	reg_gmac_3v3: gmac-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "gmac-3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		startup-delay-us = <100000>;
+		enable-active-high;
+		gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
 	};
 
 	reg_usb0_vbus: usb0-vbus {
@@ -101,18 +122,6 @@
 		enable-active-high;
 		gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
 		status = "okay";
-	};
-
-	reg_gmac_3v3: gmac-3v3 {
-		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_orangepi>;
-		regulator-name = "gmac-3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-		startup-delay-us = <100000>;
-		enable-active-high;
-		gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
 	};
 };
 
@@ -210,24 +219,26 @@
 	status = "okay";
 };
 
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
-		reg = <0>;
-	};
-};
-
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_rgmii_pins>;
 	phy-supply = <&reg_gmac_3v3>;
 	phy-handle = <&ext_rgmii_phy>;
 	phy-mode = "rgmii";
-
-	allwinner,leds-active-low;
 	status = "okay";
 };
 
 &hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&i2s2 {
 	status = "okay";
 };
 
@@ -237,7 +248,14 @@
 	status = "okay";
 };
 
-&lcd0 {
+&mdio {
+	ext_rgmii_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <1>;
+	};
+};
+
+&mixer0 {
 	status = "okay";
 };
 
@@ -266,13 +284,6 @@
 	status = "okay";
 };
 
-&pio {
-	gmac_power_pin_orangepi: gmac_power_pin@0 {
-		pins = "PD6";
-		function = "gpio_out";
-	};
-};
-
 &r_i2c {
 	status = "okay";
 
@@ -285,6 +296,14 @@
 		regulator-boot-on;
 		regulator-always-on;
 	};
+};
+
+&sound_hdmi {
+	status = "okay";
+};
+
+&tcon0 {
+	status = "okay";
 };
 
 &uart0 {

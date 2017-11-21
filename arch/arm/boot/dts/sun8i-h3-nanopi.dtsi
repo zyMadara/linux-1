@@ -290,6 +290,18 @@
 	status = "okay";
 };
 
+&uart2 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&uart2_pins>;
+    status = "okay";
+};
+
+&uart3 {
+    pinctrl-names = "default";
+    pinctrl-0 = <&uart3_pins>;
+    status = "okay";
+};
+
 &spi0 {
     /* needed to avoid dtc warning */
     #address-cells = <1>;
@@ -303,7 +315,7 @@
     spidev0: spi@0 {
         compatible = "nanopi,spidev";
         reg = <0>;
-        status = "disabled";
+        status = "okay";
 
         spi-max-frequency = <10000000>;
     };
@@ -327,7 +339,7 @@
     pitft: pitft@0{
         compatible = "sitronix,st7789v";
         reg = <0>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <50000000>;
         rotate = <90>;
@@ -341,7 +353,7 @@
     pitft_ts: pitft-ts@1 {
         compatible = "ti,ads7846";
         reg = <1>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <2000000>;
         interrupt-parent = <&pio>;

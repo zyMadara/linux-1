@@ -79,13 +79,13 @@
 	non-removable;
 	status = "okay";
 
-	brcmf: bcrmf@1 {
-		reg = <1>;
-		compatible = "brcm,bcm4329-fmac";
-		interrupt-parent = <&pio>;
-		interrupts = <6 10 IRQ_TYPE_LEVEL_LOW>; /* PG10 / EINT10 */
-		interrupt-names = "host-wake";
-	};
+    /*
+     * Explicitly define the sdio device, so that we can add an ethernet
+     * alias for it (which e.g. makes u-boot set a mac-address).
+     */
+    rtl8189: sdio_wifi@1 {
+        reg = <1>;
+    };
 };
 
 &mmc2 {
@@ -114,11 +114,5 @@
 };
 
 &i2c2 {
-    status = "okay";
-};
-
-&uart3 {
-    pinctrl-names = "default";
-    pinctrl-0 = <&uart3_pins>, <&uart3_rts_cts_pins>;
     status = "okay";
 };

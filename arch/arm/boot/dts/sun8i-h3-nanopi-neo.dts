@@ -53,21 +53,3 @@
     allwinner,leds-active-low;
     status = "okay";
 };
-
-&i2c0 {
-    status = "okay";
-    rtc@68 {
-        compatible = "dallas,ds1307";
-        reg = <0x68>;
-        };
-};
-
-&i2c1 {
-    /* no I2C1 for I2S0 */
-    status = "okay";
-};
-
-&i2s0 {
-    sound-dai = <&pcm5102a>;
-    status = "disabled";
-};

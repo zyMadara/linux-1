@@ -52,13 +52,6 @@
 	model = "FriendlyElec NanoPi-K1-Plus";
 	compatible = "friendlyelec,nanopi-k1-plus", "allwinner,sun50i-h5";
 
-	reg_vcc3v3: vcc3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc3v3";
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
-
 	aliases {
 		serial0 = &uart0;
 		serial1 = &uart1;
@@ -73,17 +66,27 @@
 		mmc0 = &mmc0;
 		mmc2 = &mmc2;
 		ethernet0 = &emac;
-		lcd0 = &lcd0;
 		i2s0 = &i2s0;
 		pcm5102a = &pcm5102a;
 		spidev0 = &spidev0;
-        spiflash = &spiflash;
-        pitft = &pitft;
-        pitft_ts = &pitft_ts;
+		spiflash = &spiflash;
+		pitft = &pitft;
+		pitft_ts = &pitft_ts;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
 	};
 
 	leds {
@@ -91,16 +94,16 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&leds_npi>, <&leds_r_npi>;
 
-		status {
-			label = "nanopi:blue:status";
-			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>;
-			linux,default-trigger = "heartbeat";
-		};
-
 		pwr {
 			label = "nanopi:green:pwr";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
+		};
+
+		status {
+			label = "nanopi:blue:status";
+			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
 		};
 	};
 
@@ -109,7 +112,7 @@
 
 		sw4 {
 			label = "sw4";
-			linux,code = <BTN_0>;
+			linux,code = <KEY_POWER>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -124,6 +127,23 @@
 		startup-delay-us = <100000>;
 		enable-active-high;
 		gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
+	};
+
+	reg_vcc3v3: vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	reg_usb0_vbus: usb0-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb0-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
+		status = "okay";
 	};
 
 	vdd_cpux: gpio-regulator {
@@ -146,13 +166,13 @@
 			  1100000 0x1>;
 	};
 
-    wifi_pwrseq: wifi_pwrseq {
-        compatible = "mmc-pwrseq-simple";
-        pinctrl-names = "default";
-        pinctrl-0 = <&wifi_en_npi>;
-        reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-        post-power-on-delay-ms = <200>;
-    };
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_en_npi>;
+		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
+		post-power-on-delay-ms = <200>;
+	};
 
 	rfkill_bt {
 		compatible = "rfkill-gpio";
@@ -175,31 +195,31 @@
 &cpu0 {
 	operating-points = <
 		/* kHz	  uV */
-        1368000 1400000
-        1344000 1400000
-        1296000 1340000
-        1248000 1280000
-        1224000 1260000
-        1200000 1240000
-        1152000 1200000
-        1104000 1170000
-        1080000 1160000
-        1056000 1150000
-        1008000 1100000
-        960000  1100000
-        936000  1100000
-        912000  1100000
-        864000  1100000
-        816000  1100000
-        792000  1100000
-        768000  1100000
-        720000  1100000
-        672000  1100000
-        648000  1100000
-        528000  1100000
-        480000  1100000
-        240000  1100000
-        120000  1100000
+		1368000 1400000
+		1344000 1400000
+		1296000 1340000
+		1248000 1280000
+		1224000 1260000
+		1200000 1240000
+		1152000 1200000
+		1104000 1170000
+		1080000 1160000
+		1056000 1150000
+		1008000 1100000
+		960000  1100000
+		936000  1100000
+		912000  1100000
+		864000  1100000
+		816000  1100000
+		792000  1100000
+		768000  1100000
+		720000  1100000
+		672000  1100000
+		648000  1100000
+		528000  1100000
+		480000  1100000
+		240000  1100000
+		120000  1100000
 		>;
 	#cooling-cells = <2>;
 	cooling-min-level = <0>;
@@ -275,12 +295,6 @@
 	status = "okay";
 };
 
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
-		reg = <0>;
-	};
-};
-
 &emac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&emac_rgmii_pins>;
@@ -288,12 +302,21 @@
 	phy-handle = <&ext_rgmii_phy>;
 	phy-mode = "rgmii";
 	local-mac-address = [ 00 00 00 00 00 00 ];
-
 	allwinner,leds-active-low;
 	status = "okay";
 };
 
 &hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
+};
+
+&i2s2 {
 	status = "okay";
 };
 
@@ -303,7 +326,14 @@
 	status = "okay";
 };
 
-&lcd0 {
+&mdio {
+	ext_rgmii_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mixer0 {
 	status = "okay";
 };
 
@@ -318,37 +348,37 @@
 };
 
 &mmc1 {
-    pinctrl-names = "default";
-    pinctrl-0 = <&mmc1_pins_a>;
-    vmmc-supply = <&reg_vcc3v3>;
-    vqmmc-supply = <&reg_vcc3v3>;
-    mmc-pwrseq = <&wifi_pwrseq>;
-    bus-width = <4>;
-    non-removable;
-    status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc1_pins_a>;
+	vmmc-supply = <&reg_vcc3v3>;
+	vqmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	bus-width = <4>;
+	non-removable;
+	status = "okay";
 
-    brcmf: bcrmf@1 {
+	brcmf: bcrmf@1 {
         reg = <1>;
-        compatible = "brcm,bcm4329-fmac";
-    };
+        	compatible = "brcm,bcm4329-fmac";
+    	};
 };
 
 &mmc2 {
-    pinctrl-names = "default";
-    pinctrl-0 = <&mmc2_8bit_pins>;
-    vmmc-supply = <&reg_vcc3v3>;
-    bus-width = <8>;
-    non-removable;
-    cap-mmc-hw-reset;
-    boot_device = <0>;
-    status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_8bit_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+	cap-mmc-hw-reset;
+	boot_device = <0>;
+	status = "okay";
 };
 
 &mmc2_8bit_pins {
-    /* Increase drive strength for DDR modes */
-    drive-strength = <40>;
-    /* eMMC is missing pull-ups */
-    bias-pull-up;
+	/* Increase drive strength for DDR modes */
+	drive-strength = <40>;
+	/* eMMC is missing pull-ups */
+	bias-pull-up;
 };
 
 &ohci0 {
@@ -398,9 +428,17 @@
 		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 	wifi_en_npi: wifi_en_pin {
-        pins = "PL7";
-        function = "gpio_out";
+		pins = "PL7";
+		function = "gpio_out";
     };
+};
+
+&sound_hdmi {
+	status = "okay";
+};
+
+&tcon0 {
+	status = "okay";
 };
 
 &r_i2c {
@@ -432,7 +470,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &uart3 {
@@ -442,12 +480,14 @@
 };
 
 &usb_otg {
-	dr_mode = "host";
-	status = "okay";
+	dr_mode = "otg";
+	status = "disable";
 };
 
 &usbphy {
+	/* USB Type-A ports' VBUS is always on */
 	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+	usb0_vbus-supply = <&reg_usb0_vbus>;
 	status = "okay";
 };
 
@@ -481,7 +521,7 @@
     spidev0: spi@0 {
         compatible = "nanopi,spidev";
         reg = <0>;
-        status = "disabled";
+        status = "okay";
 
         spi-max-frequency = <10000000>;
     };
@@ -505,7 +545,7 @@
     pitft: pitft@0{
         compatible = "sitronix,st7789v";
         reg = <0>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <50000000>;
         rotate = <90>;

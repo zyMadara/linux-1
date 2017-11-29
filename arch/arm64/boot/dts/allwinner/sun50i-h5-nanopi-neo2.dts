@@ -66,7 +66,6 @@
 		mmc0 = &mmc0;
 		mmc2 = &mmc2;
 		ethernet0 = &emac;
-		lcd0 = &lcd0;
 		i2s0 = &i2s0;
 		pcm5102a = &pcm5102a;
 		spidev0 = &spidev0;
@@ -77,6 +76,17 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
 	};
 
 	leds {
@@ -102,7 +112,7 @@
 
 		sw4 {
 			label = "sw4";
-			linux,code = <BTN_0>;
+			linux,code = <KEY_POWER>;
 			gpios = <&r_pio 0 3 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -258,13 +268,17 @@
 	status = "okay";
 };
 
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
-		reg = <0>;
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
 	};
 };
 
-&hdmi {
+&i2s2 {
 	status = "okay";
 };
 
@@ -274,7 +288,14 @@
 	status = "okay";
 };
 
-&lcd0 {
+&mdio {
+	ext_rgmii_phy: ethernet-phy@1 {
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0>;
+	};
+};
+
+&mixer0 {
 	status = "okay";
 };
 
@@ -332,6 +353,14 @@
 	};
 };
 
+&sound_hdmi {
+	status = "okay";
+};
+
+&tcon0 {
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart0_pins_a>;
@@ -347,16 +376,22 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart2_pins>;
-	status = "disabled";
+	status = "okay";
+};
+
+&uart3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart3_pins>, <&uart3_rts_cts_pins>;
+	status = "okay";
 };
 
 &usb_otg {
 	dr_mode = "otg";
-	status = "okay";
+	status = "disable";
 };
 
 &usbphy {
-	/* USB Type-A port's VBUS is always on */
+	/* USB Type-A ports' VBUS is always on */
 	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	status = "okay";
@@ -365,8 +400,8 @@
 &i2c0 {
     status = "okay";
     rtc@68 {
-            compatible = "dallas,ds1307";
-            reg = <0x68>;
+        compatible = "dallas,ds1307";
+        reg = <0x68>;
     };
 };
 
@@ -392,7 +427,7 @@
     spidev0: spi@0 {
         compatible = "nanopi,spidev";
         reg = <0>;
-        status = "disabled";
+        status = "okay";
 
         spi-max-frequency = <10000000>;
     };
@@ -416,7 +451,7 @@
     pitft: pitft@0{
         compatible = "sitronix,st7789v";
         reg = <0>;
-        status = "okay";
+        status = "disabled";
 
         spi-max-frequency = <50000000>;
         rotate = <90>;

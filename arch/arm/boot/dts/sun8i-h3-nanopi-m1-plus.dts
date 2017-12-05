@@ -155,7 +155,8 @@
 };
 
 &usb_otg {
-    dr_mode = "otg";
+    // OTG is not stable.
+    dr_mode = "host";
     status = "okay";
 };
 

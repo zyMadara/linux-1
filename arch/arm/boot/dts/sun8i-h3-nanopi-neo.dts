@@ -53,3 +53,15 @@
     allwinner,leds-active-low;
     status = "okay";
 };
+
+&usb_otg {
+    // OTG is not stable.
+    dr_mode = "host";
+    status = "okay";
+};
+
+&usbphy {
+    usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+    usb0_vbus-supply = <&reg_usb0_vbus>;
+    status = "okay";
+};

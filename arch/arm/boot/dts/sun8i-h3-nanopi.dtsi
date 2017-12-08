@@ -298,7 +298,7 @@
 
 &uart3 {
     pinctrl-names = "default";
-    pinctrl-0 = <&uart3_pins>;
+    pinctrl-0 = <&uart3_pins>, <&uart3_rts_cts_pins>;
     status = "okay";
 };
 
@@ -394,6 +394,7 @@
 };
 
 &spi1 {
+    // against uart3_rts_cts_pins, so disable
     status = "disable";
     spidev1: spi@1 {
         compatible = "nanopi,spidev";

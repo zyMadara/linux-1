@@ -47,24 +47,24 @@
 	compatible = "friendlyelec,nanopi-neo2", "allwinner,sun50i-h5";
 
 	vdd_cpux: gpio-regulator {
-        compatible = "regulator-gpio";
+		compatible = "regulator-gpio";
 
-        pinctrl-names = "default";
-        pinctrl-0 = <&vdd_cpux_r_npi>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&vdd_cpux_r_npi>;
 
-        regulator-name = "vdd-cpux";
-        regulator-type = "voltage";
-        regulator-boot-on;
-        regulator-always-on;
-        regulator-min-microvolt = <1100000>;
-        regulator-max-microvolt = <1100000>;
-        regulator-ramp-delay = <50>; /* 4ms */
+		regulator-name = "vdd-cpux";
+		regulator-type = "voltage";
+		regulator-boot-on;
+		regulator-always-on;
+		regulator-min-microvolt = <1100000>;
+		regulator-max-microvolt = <1100000>;
+		regulator-ramp-delay = <50>; /* 4ms */
 
-        gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>;
-        gpios-states = <0x1>;
-        states = <1100000 0x0
-              1100000 0x1>;
-    };
+		gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0x1>;
+		states = <1100000 0x0
+			  1100000 0x1>;
+	};
 };
 
 &cpu0 {

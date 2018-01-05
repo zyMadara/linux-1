@@ -46,26 +46,6 @@
 	model = "FriendlyElec NanoPi-K1-Plus";
 	compatible = "friendlyelec,nanopi-k1-plus", "allwinner,sun50i-h5";
 
-	vdd_cpux: gpio-regulator {
-		compatible = "regulator-gpio";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&vdd_cpux_r_npi>;
-
-		regulator-name = "vdd-cpux";
-		regulator-type = "voltage";
-		regulator-boot-on;
-		regulator-always-on;
-		regulator-min-microvolt = <1100000>;
-		regulator-max-microvolt = <1300000>;
-		regulator-ramp-delay = <50>; /* 4ms */
-
-		gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>;
-		gpios-states = <0x1>;
-		states = <1100000 0x0
-			  1300000 0x1>;
-	};
-
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
@@ -74,33 +54,41 @@
 		post-power-on-delay-ms = <200>;
 	};
 
-	rfkill_bt {
-		compatible = "rfkill-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&bt_pwr_pin>;
-		reset-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
-		clocks = <&osc32k>;
-		clock-frequency = <32768>;
-		rfkill-name = "sunxi-bt";
-		rfkill-type = "bluetooth";
-	};
 };
 
 &cpu0 {
 	operating-points = <
-		1248000 1300000
-		1008000	1100000
-		816000	1100000
-		624000	1100000
-		480000	1100000
-		312000	1100000
-		240000	1100000
-		120000	1100000
+		/* kHz	  uV */
+		1368000 1400000
+		1344000 1400000
+		1296000 1340000
+		1248000 1280000
+		1224000 1260000
+		1200000 1240000
+		1152000 1200000
+		1104000 1170000
+		1080000 1160000
+		1056000 1150000
+		1008000 1100000
+		960000  1080000
+		936000  1060000
+		912000  1050000
+		864000  1040000
+		816000  1000000
+		792000  1000000
+		768000  980000
+		720000  970000
+		672000  970000
+		648000  970000
+		528000  940000
+		480000  940000
+		240000  940000
+		120000  940000
 		>;
 	#cooling-cells = <2>;
 	cooling-min-level = <0>;
-	cooling-max-level = <7>;
-	cpu0-supply = <&vdd_cpux>;
+	cooling-max-level = <24>;
+	cpu0-supply = <&vdd_cpu>;
 };
 
 &cpu_thermal {
@@ -130,24 +118,27 @@
 	cooling-maps {
 		cpu_warm_limit_cpu {
 			trip = <&cpu_warm>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 1>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 		};
 		cpu_hot_limit_cpu {
 			trip = <&cpu_hot>;
-			cooling-device = <&cpu0 2 3>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
 		};
 		cpu_very_hot_limit_cpu {
 			trip = <&cpu_very_hot>;
-			cooling-device = <&cpu0 5 THERMAL_NO_LIMIT>;
+			cooling-device = <&cpu0 18 THERMAL_NO_LIMIT>; /* Limit cpu speed above 90C to 720MHz */
 		};
 	};
 };
 
 &emac {
-    phy-handle = <&int_mii_phy>;
-    phy-mode = "mii";
-    allwinner,leds-active-low;
-    status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&emac_rgmii_pins>;
+	phy-supply = <&reg_gmac_3v3>;
+	phy-handle = <&ext_rgmii_phy>;
+	phy-mode = "rgmii";
+	allwinner,leds-active-low;
+	status = "okay";
 };
 
 &mdio {
@@ -167,10 +158,13 @@
 	non-removable;
 	status = "okay";
 
-	brcmf: bcrmf@1 {
+    /*
+     * Explicitly define the sdio device, so that we can add an ethernet
+     * alias for it (which e.g. makes u-boot set a mac-address).
+     */
+    rtl8189: sdio_wifi@1 {
         reg = <1>;
-        	compatible = "brcm,bcm4329-fmac";
-    	};
+    };
 };
 
 &mmc2 {
@@ -180,7 +174,6 @@
 	bus-width = <8>;
 	non-removable;
 	cap-mmc-hw-reset;
-	boot_device = <0>;
 	status = "okay";
 };
 
@@ -191,16 +184,23 @@
 	bias-pull-up;
 };
 
-&pio {
-	bt_pwr_pin: bt_pwr_pin@0 {
-		pins = "PG13";
-		function = "gpio_out";
-	};
-};
-
 &r_pio {
 	wifi_en_npi: wifi_en_pin {
 		pins = "PL7";
 		function = "gpio_out";
     };
+};
+
+&r_i2c {
+	status = "okay";
+
+	vdd_cpu: regulator@65 {
+		compatible = "silergy,sy8106a";
+		reg = <0x65>;
+		regulator-min-microvolt = <940000>;
+		regulator-max-microvolt = <1400000>;
+		regulator-ramp-delay = <200>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
 };

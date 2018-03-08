@@ -17,7 +17,7 @@ Features in addition to mainline:
 
 - CPU frequency and voltage scaling (cpufreq)
 - Thermal regulation (if CPU heats above certain temperature, it will try to cool itself down by reducing CPU frequency)
-- HDMI output support (patches from [jernejsk](https://github.com/jernejsk/linux-1/tree/h3_hdmi_audio_v1) and icenowy, with DTS changes for H5 by me)
+- HDMI output support (pulled from linux-next/master)
 - Configure on-board micro-switches to perform system power off function
 - Wireguard (https://www.wireguard.com/)
 
@@ -69,11 +69,11 @@ all the necessary patches integrated and is configured for quick u-boot/kernel s
     cp $KBUILD_OUTPUT/.config $OUT/pc2/uboot.config
     cat $KBUILD_OUTPUT/{spl/sunxi-spl.bin,u-boot.itb} > $OUT/pc2/uboot.bin
 
-Get kernel from this repository and checkout the latest orange-pi-4.15 branch.
+Get kernel from this repository and checkout the latest orange-pi-4.16 branch.
 
 Configure kernel by using the prepared configuration for H5 based Orange Pi boards:
 
-    cp linux-4.15-64 .config
+    cp linux-4.16-64 .config
 
 Build the kernel:
 
@@ -91,7 +91,7 @@ Build the kernel:
 
 Configure kernel by using the prepared configuration for H3 based Orange Pi boards:
 
-    cp linux-4.15-32 .config
+    cp linux-4.16-32 .config
 
 Build the kernel:
 
@@ -145,5 +145,5 @@ mid August 2017.
 Sample configuration
 --------------------
 
-- *linux-4.15-32* file contains working configuration of the kernel for Orange Pi PC/One
-- *linux-4.15-64* file contains working configuration of the kernel for Orange Pi PC 2
+- *linux-4.16-32* file contains working configuration of the kernel for Orange Pi PC/One
+- *linux-4.16-64* file contains working configuration of the kernel for Orange Pi PC 2

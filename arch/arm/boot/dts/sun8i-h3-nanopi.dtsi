@@ -403,10 +403,6 @@
     };
 };
 
-&usbphy {
-	status = "okay";
-};
-
 &de {
     status = "okay";
 };
@@ -458,4 +454,24 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm0_pins>;
 	status = "disabled";
+};
+
+&reg_usb0_vbus {
+	gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
+	status = "okay";
+};
+
+&usb_otg {
+	// OTG is not stable.
+	// most nanopi-h3's MicroUSB support OTG, except:
+	// 1. nanopi-neo-V1.4 support OTG, nanopi-neo-V1.3/1.2... support USB device.
+	// 2. nanopi-k1 only use as power.
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usbphy {
+	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+	usb0_vbus-supply = <&reg_usb0_vbus>;
+	status = "okay";
 };

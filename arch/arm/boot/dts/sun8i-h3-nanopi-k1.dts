@@ -104,3 +104,15 @@
     /* eMMC is missing pull-ups */
     bias-pull-up;
 };
+
+&reg_usb0_vbus {
+    status = "disabled";
+};
+
+&usb_otg {
+    status = "disabled";
+};
+
+&usbphy {
+    status = "disabled";
+};

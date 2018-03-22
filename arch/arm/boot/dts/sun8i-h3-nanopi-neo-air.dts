@@ -40,47 +40,43 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-/dts-v1/;
 #include "sun8i-h3-nanopi.dtsi"
-#include "sunxi-common-regulators.dtsi"
-
-#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "FriendlyElec NanoPi-NEO-Air";
 	compatible = "friendlyarm,nanopi-neo-air", "allwinner,sun8i-h3";
 
-    wifi_pwrseq: wifi_pwrseq {
-        compatible = "mmc-pwrseq-simple";
-        pinctrl-names = "default";
-        pinctrl-0 = <&wifi_en_npi>;
-        reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
-        post-power-on-delay-ms = <200>;
-    };
-    rfkill_bt {
-        compatible = "rfkill-gpio";
-        pinctrl-names = "default";
-        pinctrl-0 = <&bt_pwr_pin>;
-        reset-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
-        clocks = <&osc32k>;
-        clock-frequency = <32768>;
-        rfkill-name = "sunxi-bt";
-        rfkill-type = "bluetooth";
-    };
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_en_npi>;
+		reset-gpios = <&r_pio 0 7 GPIO_ACTIVE_LOW>; /* PL7 */
+		post-power-on-delay-ms = <200>;
+	};
+	rfkill_bt {
+		compatible = "rfkill-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&bt_pwr_pin>;
+		reset-gpios = <&pio 6 13 GPIO_ACTIVE_HIGH>; /* PG13 */
+		clocks = <&osc32k>;
+		clock-frequency = <32768>;
+		rfkill-name = "sunxi-bt";
+		rfkill-type = "bluetooth";
+	};
 };
 
 &pio {
-    bt_pwr_pin: bt_pwr_pin@0 {
-        pins = "PG13";
-        function = "gpio_out";
-    };
+	bt_pwr_pin: bt_pwr_pin@0 {
+		pins = "PG13";
+		function = "gpio_out";
+	};
 };
 
 &r_pio {
-    wifi_en_npi: wifi_en_pin {
-        pins = "PL7";
-        function = "gpio_out";
-    };
+	wifi_en_npi: wifi_en_pin {
+		pins = "PL7";
+		function = "gpio_out";
+	};
 };
 
 &mmc1 {
@@ -103,35 +99,18 @@
 };
 
 &mmc2 {
-    pinctrl-names = "default";
-    pinctrl-0 = <&mmc2_8bit_pins>;
-    vmmc-supply = <&reg_vcc3v3>;
-    bus-width = <8>;
-    non-removable;
-    cap-mmc-hw-reset;
-    status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&mmc2_8bit_pins>;
+	vmmc-supply = <&reg_vcc3v3>;
+	bus-width = <8>;
+	non-removable;
+	cap-mmc-hw-reset;
+	status = "okay";
 };
 
 &mmc2_8bit_pins {
-    /* Increase drive strength for DDR modes */
-    drive-strength = <40>;
-    /* eMMC is missing pull-ups */
-    bias-pull-up;
-};
-
-&reg_usb0_vbus {
-    gpio = <&r_pio 0 2 GPIO_ACTIVE_HIGH>; /* PL2 */
-    status = "okay";
-};
-
-&usb_otg {
-    // OTG is not stable.
-    dr_mode = "host";
-    status = "okay";
-};
-
-&usbphy {
-    usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
-    usb0_vbus-supply = <&reg_usb0_vbus>;
-    status = "okay";
+	/* Increase drive strength for DDR modes */
+	drive-strength = <40>;
+	/* eMMC is missing pull-ups */
+	bias-pull-up;
 };

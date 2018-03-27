@@ -1,6 +1,8 @@
-/* Original author: Samuel Neves <sneves@dei.uc.pt>
+/* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright (C) 2015-2017 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ * Copyright (C) 2015-2018 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
+ *
+ * Original author: Samuel Neves <sneves@dei.uc.pt>
  */
 
 #include "blake2s.h"
@@ -11,18 +13,21 @@
 #include <linux/bug.h>
 #include <asm/unaligned.h>
 
-typedef struct {
-	u8 digest_length;
-	u8 key_length;
-	u8 fanout;
-	u8 depth;
-	u32 leaf_length;
-	u32 node_offset;
-	u16 xof_length;
-	u8 node_depth;
-	u8 inner_length;
-	u8 salt[8];
-	u8 personal[8];
+typedef union {
+	struct {
+		u8 digest_length;
+		u8 key_length;
+		u8 fanout;
+		u8 depth;
+		u32 leaf_length;
+		u32 node_offset;
+		u16 xof_length;
+		u8 node_depth;
+		u8 inner_length;
+		u8 salt[8];
+		u8 personal[8];
+	};
+	__le32 words[8];
 } __packed blake2s_param;
 
 static const u32 blake2s_iv[8] = {
@@ -63,16 +68,11 @@ static inline void blake2s_increment_counter(struct blake2s_state *state, const 
 
 static inline void blake2s_init_param(struct blake2s_state *state, const blake2s_param *param)
 {
-	const __le32 *p;
 	int i;
 
 	memset(state, 0, sizeof(struct blake2s_state));
 	for (i = 0; i < 8; ++i)
-		state->h[i] = blake2s_iv[i];
-	p = (const __le32 *)param;
-	/* IV XOR ParamBlock */
-	for (i = 0; i < 8; ++i)
-		state->h[i] ^= le32_to_cpu(p[i]);
+		state->h[i] = blake2s_iv[i] ^ le32_to_cpu(param->words[i]);
 }
 
 void blake2s_init(struct blake2s_state *state, const size_t outlen)
@@ -113,12 +113,23 @@ void blake2s_init_key(struct blake2s_state *state, const size_t outlen, const vo
 #include <asm/processor.h>
 #include <asm/fpu/api.h>
 #include <asm/simd.h>
-static bool blake2s_use_avx __read_mostly;
+static bool blake2s_use_avx __ro_after_init;
+static bool blake2s_use_avx512 __ro_after_init;
 void __init blake2s_fpu_init(void)
 {
+#ifndef CONFIG_UML
 	blake2s_use_avx = boot_cpu_has(X86_FEATURE_AVX) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL);
+#ifndef COMPAT_CANNOT_USE_AVX512
+	blake2s_use_avx512 = boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_AVX2) && boot_cpu_has(X86_FEATURE_AVX512F) && boot_cpu_has(X86_FEATURE_AVX512VL) && cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM | XFEATURE_MASK_AVX512, NULL);
+#endif
+#endif
 }
+#ifdef CONFIG_AS_AVX
 asmlinkage void blake2s_compress_avx(struct blake2s_state *state, const u8 *block, size_t nblocks, u32 inc);
+#endif
+#ifdef CONFIG_AS_AVX512
+asmlinkage void blake2s_compress_avx512(struct blake2s_state *state, const u8 *block, size_t nblocks, u32 inc);
+#endif
 #else
 void __init blake2s_fpu_init(void) { }
 #endif
@@ -134,12 +145,22 @@ static inline void blake2s_compress(struct blake2s_state *state, const u8 *block
 #endif
 
 #ifdef CONFIG_X86_64
+#ifdef CONFIG_AS_AVX512
+	if (blake2s_use_avx512 && irq_fpu_usable()) {
+		kernel_fpu_begin();
+		blake2s_compress_avx512(state, block, nblocks, inc);
+		kernel_fpu_end();
+		return;
+	}
+#endif
+#ifdef CONFIG_AS_AVX
 	if (blake2s_use_avx && irq_fpu_usable()) {
 		kernel_fpu_begin();
 		blake2s_compress_avx(state, block, nblocks, inc);
 		kernel_fpu_end();
 		return;
 	}
+#endif
 #endif
 
 	while (nblocks > 0) {
@@ -238,39 +259,35 @@ void __blake2s_final(struct blake2s_state *state)
 void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen, const size_t inlen, const size_t keylen)
 {
 	struct blake2s_state state;
-	u8 o_key[BLAKE2S_BLOCKBYTES] __aligned(__alignof__(u32)) = { 0 };
-	u8 i_key[BLAKE2S_BLOCKBYTES] __aligned(__alignof__(u32)) = { 0 };
+	u8 x_key[BLAKE2S_BLOCKBYTES] __aligned(__alignof__(u32)) = { 0 };
 	u8 i_hash[BLAKE2S_OUTBYTES] __aligned(__alignof__(u32));
 	int i;
 
 	if (keylen > BLAKE2S_BLOCKBYTES) {
 		blake2s_init(&state, BLAKE2S_OUTBYTES);
 		blake2s_update(&state, key, keylen);
-		blake2s_final(&state, o_key, BLAKE2S_OUTBYTES);
-		memcpy(i_key, o_key, BLAKE2S_OUTBYTES);
-	} else {
-		memcpy(o_key, key, keylen);
-		memcpy(i_key, key, keylen);
-	}
+		blake2s_final(&state, x_key, BLAKE2S_OUTBYTES);
+	} else
+		memcpy(x_key, key, keylen);
 
-	for (i = 0; i < BLAKE2S_BLOCKBYTES; ++i) {
-		o_key[i] ^= 0x5c;
-		i_key[i] ^= 0x36;
-	}
+	for (i = 0; i < BLAKE2S_BLOCKBYTES; ++i)
+		x_key[i] ^= 0x36;
 
 	blake2s_init(&state, BLAKE2S_OUTBYTES);
-	blake2s_update(&state, i_key, BLAKE2S_BLOCKBYTES);
+	blake2s_update(&state, x_key, BLAKE2S_BLOCKBYTES);
 	blake2s_update(&state, in, inlen);
 	blake2s_final(&state, i_hash, BLAKE2S_OUTBYTES);
 
+	for (i = 0; i < BLAKE2S_BLOCKBYTES; ++i)
+		x_key[i] ^= 0x5c ^ 0x36;
+
 	blake2s_init(&state, BLAKE2S_OUTBYTES);
-	blake2s_update(&state, o_key, BLAKE2S_BLOCKBYTES);
+	blake2s_update(&state, x_key, BLAKE2S_BLOCKBYTES);
 	blake2s_update(&state, i_hash, BLAKE2S_OUTBYTES);
 	blake2s_final(&state, i_hash, BLAKE2S_OUTBYTES);
 
 	memcpy(out, i_hash, outlen);
-	memzero_explicit(o_key, BLAKE2S_BLOCKBYTES);
-	memzero_explicit(i_key, BLAKE2S_BLOCKBYTES);
+	memzero_explicit(x_key, BLAKE2S_BLOCKBYTES);
 	memzero_explicit(i_hash, BLAKE2S_OUTBYTES);
 }
 

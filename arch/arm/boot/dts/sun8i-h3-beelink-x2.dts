@@ -133,17 +133,9 @@
 	};
 };
 
-&i2s2 {
-	status = "okay";
-};
-
 &ir {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ir_pins_a>;
-	status = "okay";
-};
-
-&mixer0 {
 	status = "okay";
 };
 
@@ -200,14 +192,6 @@
 &spdif {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spdif_tx_pins_a>;
-	status = "okay";
-};
-
-&sound_hdmi {
-	status = "okay";
-};
-
-&tcon0 {
 	status = "okay";
 };
 

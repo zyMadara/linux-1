@@ -1057,7 +1057,7 @@ static void snbep_qpi_enable_event(struct intel_uncore_box *box, struct perf_eve
 
 	if (reg1->idx != EXTRA_REG_NONE) {
 		int idx = box->pmu->pmu_idx + SNBEP_PCI_QPI_PORT0_FILTER;
-		int pkg = topology_phys_to_logical_pkg(box->pci_phys_id);
+		int pkg = box->pkgid;
 		struct pci_dev *filter_pdev = uncore_extra_pci_dev[pkg].dev[idx];
 
 		if (filter_pdev) {
@@ -3035,11 +3035,19 @@ static struct intel_uncore_type *bdx_msr_uncores[] = {
 	NULL,
 };
 
+/* Bit 7 'Use Occupancy' is not available for counter 0 on BDX */
+static struct event_constraint bdx_uncore_pcu_constraints[] = {
+	EVENT_CONSTRAINT(0x80, 0xe, 0x80),
+	EVENT_CONSTRAINT_END
+};
+
 void bdx_uncore_cpu_init(void)
 {
 	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
 		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
 	uncore_msr_uncores = bdx_msr_uncores;
+
+	hswep_uncore_pcu.constraints = bdx_uncore_pcu_constraints;
 }
 
 static struct intel_uncore_type bdx_uncore_ha = {
@@ -3598,7 +3606,7 @@ static struct intel_uncore_type skx_uncore_imc = {
 };
 
 static struct attribute *skx_upi_uncore_formats_attr[] = {
-	&format_attr_event_ext.attr,
+	&format_attr_event.attr,
 	&format_attr_umask_ext.attr,
 	&format_attr_edge.attr,
 	&format_attr_inv.attr,

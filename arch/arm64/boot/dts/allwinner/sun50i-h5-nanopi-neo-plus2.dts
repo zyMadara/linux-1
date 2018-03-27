@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2017 Antony Antony <antony@phenome.org>
  * Copyright (C) 2016 ARM Ltd.
  *
  * This file is dual-licensed: you can use it either under the terms
@@ -48,10 +49,8 @@
 
 	vdd_cpux: gpio-regulator {
 		compatible = "regulator-gpio";
-
 		pinctrl-names = "default";
 		pinctrl-0 = <&vdd_cpux_r_npi>;
-
 		regulator-name = "vdd-cpux";
 		regulator-type = "voltage";
 		regulator-boot-on;
@@ -59,13 +58,12 @@
 		regulator-min-microvolt = <1100000>;
 		regulator-max-microvolt = <1300000>;
 		regulator-ramp-delay = <50>; /* 4ms */
-
 		gpios = <&r_pio 0 6 GPIO_ACTIVE_HIGH>;
 		gpios-states = <0x1>;
 		states = <1100000 0x0
 			  1300000 0x1>;
 	};
-	
+
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";
@@ -153,10 +151,10 @@
 	status = "okay";
 };
 
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
+&external_mdio {
+	ext_rgmii_phy: ethernet-phy@7 {
 		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
+		reg = <7>;
 	};
 };
 
@@ -170,10 +168,10 @@
 	non-removable;
 	status = "okay";
 
-	brcmf: bcrmf@1 {
-        reg = <1>;
-        	compatible = "brcm,bcm4329-fmac";
-    	};
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
 };
 
 &mmc2 {

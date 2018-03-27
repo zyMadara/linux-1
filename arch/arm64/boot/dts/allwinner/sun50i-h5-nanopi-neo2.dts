@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 ARM Ltd.
+ * Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
  *
  * This file is dual-licensed: you can use it either under the terms
  * of the GPL or the X11 license, at your option. Note that this dual
@@ -133,9 +133,9 @@
 	status = "okay";
 };
 
-&mdio {
-	ext_rgmii_phy: ethernet-phy@1 {
+&external_mdio {
+	ext_rgmii_phy: ethernet-phy@7 {
 		compatible = "ethernet-phy-ieee802.3-c22";
-		reg = <0>;
+		reg = <7>;
 	};
 };

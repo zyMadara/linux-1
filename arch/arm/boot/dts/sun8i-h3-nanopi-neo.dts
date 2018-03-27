@@ -48,18 +48,18 @@
 };
 
 &emac {
-    phy-handle = <&int_mii_phy>;
-    phy-mode = "mii";
-    allwinner,leds-active-low;
-    status = "okay";
+	phy-handle = <&int_mii_phy>;
+	phy-mode = "mii";
+	allwinner,leds-active-low;
+	status = "okay";
 };
 
 &usb_otg {
-    dr_mode = "peripheral";
-    status = "okay";
+	dr_mode = "peripheral";
+	status = "okay";
 };
 
 &usbphy {
-    usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
-    status = "okay";
+	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
+	status = "okay";
 };

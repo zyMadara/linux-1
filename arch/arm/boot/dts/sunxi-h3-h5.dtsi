@@ -676,7 +676,7 @@
 			dmas = <&dma 27>;
 			resets = <&ccu RST_BUS_I2S2>;
 			dma-names = "tx";
-			//status = "disabled";
+			status = "disabled";
 		};
 
 		sound_hdmi: sound {
@@ -684,7 +684,7 @@
 			simple-audio-card,format = "i2s";
 			simple-audio-card,name = "allwinner,hdmi";
 			simple-audio-card,mclk-fs = <256>;
-			//status = "disabled";
+			status = "disabled";
 
 			simple-audio-card,codec {
 				sound-dai = <&hdmi>;

@@ -647,6 +647,8 @@
 			interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&ccu CLK_BUS_I2S0>, <&ccu CLK_I2S0>;
 			clock-names = "apb", "mod";
+			pinctrl-names = "default";
+ 			pinctrl-0 = <&i2s0_pins>;
 			dmas = <&dma 3>, <&dma 3>;
 			resets = <&ccu RST_BUS_I2S0>;
 			dma-names = "rx", "tx";

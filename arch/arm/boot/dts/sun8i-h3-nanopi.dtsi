@@ -71,6 +71,7 @@
 		spiflash = &spiflash;
 		pitft = &pitft;
 		pitft_ts = &pitft_ts;
+		ir = &ir;
 	};
 
 	chosen {
@@ -474,4 +475,10 @@
 	usb0_id_det-gpios = <&pio 6 12 GPIO_ACTIVE_HIGH>; /* PG12 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	status = "okay";
+};
+
+&ir {
+	pinctrl-names = "default";
+	pinctrl-0 = <&ir_pins_a>;
+	status = "disabled";
 };

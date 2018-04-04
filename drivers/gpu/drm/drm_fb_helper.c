@@ -1797,6 +1797,8 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	sizes.surface_bpp = 32;
 	sizes.fb_width = (u32)-1;
 	sizes.fb_height = (u32)-1;
+	sizes.surface_width = 1920;
+	sizes.surface_height = 1080;
 
 	/* if driver picks 8 or 16 by default use that for both depth/bpp */
 	if (preferred_bpp != sizes.surface_bpp)
@@ -1879,12 +1881,15 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	}
 
 	if (crtc_count == 0 || sizes.fb_width == -1 || sizes.fb_height == -1) {
-		DRM_INFO("Cannot find any crtc or sizes\n");
+		DRM_INFO("Cannot find any crtc or sizes, assume HDMI: 1920X1080\n");
+
+		// FriendlyElec's Qt-demo/eflasher/rtm-app count on /dev/fb0, So always generate fb0.
+		sizes.fb_width = 1920;
+		sizes.fb_height = 1080;
 
 		/* First time: disable all crtc's.. */
 		if (!fb_helper->deferred_setup && !READ_ONCE(fb_helper->dev->master))
 			restore_fbdev_mode(fb_helper);
-		return -EAGAIN;
 	}
 
 	/* Handle our overallocation */

@@ -69,6 +69,7 @@
         spiflash = &spiflash;
         pitft = &pitft;
         pitft_ts = &pitft_ts;
+		ir = &ir;
     };
 
     chosen {
@@ -425,5 +426,5 @@
 &ir {
     pinctrl-names = "default";
     pinctrl-0 = <&ir_pins_a>;
-    status = "okay";
+    status = "disabled";
 };

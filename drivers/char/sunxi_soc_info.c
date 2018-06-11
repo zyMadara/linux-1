@@ -12,6 +12,8 @@
 #define BOARD_TYPE_NANOPI_DUO             (4)
 #define BOARD_TYPE_NANOPI_NEO_CORE        (5)
 #define BOARD_TYPE_NANOPI_K1              (6)
+#define BOARD_TYPE_NANOPI_HERO            (7)
+
 // H5
 #define BOARD_TYPE_NANOPI_NEO_CORE2       (0)       // 00
 #define BOARD_TYPE_NANOPI_NEO2            (1)       // 01
@@ -55,7 +57,8 @@ static ssize_t sys_info_show(struct class *class, struct class_attribute *attr,
         || !strcasecmp("FriendlyElec NanoPi-M1", dt_machine_name) \
         || !strcasecmp("FriendlyElec NanoPi-M1-Plus", dt_machine_name) \
         || !strcasecmp("FriendlyElec NanoPi-NEO-Core", dt_machine_name)\
-        || !strcasecmp("FriendlyElec NanoPi-K1", dt_machine_name)) {
+        || !strcasecmp("FriendlyElec NanoPi-K1", dt_machine_name)\
+        || !strcasecmp("FriendlyElec NanoPi-Hero", dt_machine_name)) {
         size += sprintf(buf + size, "sunxi_platform    : sun8iw7p1\n");
     } else if (!strcasecmp("FriendlyElec NanoPi-NEO-Core2", dt_machine_name) \
 	 || !strcasecmp("FriendlyElec NanoPi-NEO2", dt_machine_name) \
@@ -87,7 +90,9 @@ static ssize_t sys_info_show(struct class *class, struct class_attribute *attr,
     else if (!strcasecmp("FriendlyElec NanoPi-K1-Plus", dt_machine_name))
         size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_K1_PLUS);	// diff from m1-plus2
     else if (!strcasecmp("FriendlyElec NanoPi-K1", dt_machine_name))
-        size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_K1);		// diff from k1-plus
+        size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_K1);		// diff from k1-plus    
+    else if (!strcasecmp("FriendlyElec NanoPi-Hero", dt_machine_name))
+        size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_HERO);		// diff from m1
     else {
         databuf[0] = sunxi_get_board_vendor_id();
         size += sprintf(buf + size, "sunxi_board_id    : %d(%d)\n", (databuf[0]<0)?(-1):(databuf[0]&~(0xe0)), (databuf[0]<0)?(-1):((databuf[0]>>5)&0x01));

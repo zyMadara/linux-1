@@ -682,25 +682,30 @@ static int sun6i_subdev_notify_complete(struct v4l2_async_notifier *notifier)
 	return media_device_register(&csi->media_dev);
 }
 
-static const struct v4l2_async_notifier_operations sun6i_csi_async_ops = {
-	.complete = sun6i_subdev_notify_complete,
-};
-
 static int sun6i_csi_fwnode_parse(struct device *dev,
-				  struct v4l2_fwnode_endpoint *vep,
+				  struct fwnode_handle *fwnode,
 				  struct v4l2_async_subdev *asd)
 {
 	struct sun6i_csi *csi = dev_get_drvdata(dev);
+	struct v4l2_fwnode_endpoint vep;
+	int ret;
 
-	if (vep->base.port || vep->base.id) {
+	ret = v4l2_fwnode_endpoint_parse(fwnode, &vep);
+	if (ret)
+		return ret;
+
+	dev_dbg(dev, "parsing endpoint %pOF, interface %u\n",
+			to_of_node(fwnode), vep.base.port);
+
+	if (vep.base.port || vep.base.id) {
 		dev_warn(dev, "Only support a single port with one endpoint\n");
 		return -ENOTCONN;
 	}
 
-	switch (vep->bus_type) {
+	switch (vep.bus_type) {
 	case V4L2_MBUS_PARALLEL:
 	case V4L2_MBUS_BT656:
-		csi->v4l2_ep = *vep;
+		csi->v4l2_ep = vep;
 		return 0;
 	default:
 		dev_err(dev, "Unsupported media bus type\n");
@@ -708,9 +713,52 @@ static int sun6i_csi_fwnode_parse(struct device *dev,
 	}
 }
 
+static int sun6i_csi_fwnodes_parse(struct device *dev,
+			     struct v4l2_async_notifier *notifier)
+{
+	struct fwnode_handle *fwnode = NULL;
+
+#define SUNXI_CSI_MAX_SUBDEVS		(1)
+	notifier->subdevs = devm_kcalloc(
+		dev, SUNXI_CSI_MAX_SUBDEVS, sizeof(*notifier->subdevs), GFP_KERNEL);
+	if (!notifier->subdevs)
+		return -ENOMEM;
+
+	while (notifier->num_subdevs < SUNXI_CSI_MAX_SUBDEVS &&
+	       (fwnode = fwnode_graph_get_next_endpoint(
+			of_fwnode_handle(dev->of_node), fwnode))) {
+		struct v4l2_async_subdev *asd;
+
+		asd = devm_kzalloc(dev, sizeof(*asd), GFP_KERNEL);
+		if (!asd)
+			goto error;
+
+		if (sun6i_csi_fwnode_parse(dev, fwnode, asd)) {
+			devm_kfree(dev, asd);
+			continue;
+		}
+
+		notifier->subdevs[notifier->num_subdevs] = asd;
+		asd->match.fwnode.fwnode =
+			fwnode_graph_get_remote_port_parent(fwnode);
+		if (!asd->match.fwnode.fwnode) {
+			dev_warn(dev, "bad remote port parent\n");
+			goto error;
+		}
+
+		asd->match_type = V4L2_ASYNC_MATCH_FWNODE;
+		notifier->num_subdevs++;
+	}
+
+	return notifier->num_subdevs;
+
+error:
+	fwnode_handle_put(fwnode);
+	return -EINVAL;
+}
+
 static void sun6i_csi_v4l2_cleanup(struct sun6i_csi *csi)
 {
-	v4l2_async_notifier_cleanup(&csi->notifier);
 	v4l2_async_notifier_unregister(&csi->notifier);
 	sun6i_video_cleanup(&csi->video);
 	v4l2_device_unregister(&csi->v4l2_dev);
@@ -749,24 +797,20 @@ static int sun6i_csi_v4l2_init(struct sun6i_csi *csi)
 	if (ret)
 		goto unreg_v4l2;
 
-	ret = v4l2_async_notifier_parse_fwnode_endpoints(
-		csi->dev, &csi->notifier, sizeof(struct v4l2_async_subdev),
-		sun6i_csi_fwnode_parse);
-	if (ret)
+	ret = sun6i_csi_fwnodes_parse(csi->dev, &csi->notifier);
+	if (ret < 0)
 		goto clean_video;
 
-	csi->notifier.ops = &sun6i_csi_async_ops;
+	csi->notifier.complete = sun6i_subdev_notify_complete;
 
 	ret = v4l2_async_notifier_register(&csi->v4l2_dev, &csi->notifier);
 	if (ret) {
 		dev_err(csi->dev, "notifier registration failed\n");
-		goto clean_notifier;
+		goto clean_video;
 	}
 
 	return 0;
 
-clean_notifier:
-	v4l2_async_notifier_cleanup(&csi->notifier);
 clean_video:
 	sun6i_video_cleanup(&csi->video);
 unreg_v4l2:

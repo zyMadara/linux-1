@@ -149,6 +149,22 @@
         compatible = "ti,pcm5102a";
         status = "disabled";
     };
+
+    sound_i2s {
+        compatible = "simple-audio-card";
+        simple-audio-card,name = "I2S-master";
+        simple-audio-card,mclk-fs = <256>;
+        simple-audio-card,format = "i2s";
+        status = "okay";
+
+        simple-audio-card,cpu {
+            sound-dai = <&i2s0>;
+        };
+
+        simple-audio-card,codec {
+            sound-dai = <&pcm5102a>;
+        };
+    };
 };
 
 &ehci0 {

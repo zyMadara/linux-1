@@ -37,6 +37,7 @@ static unsigned int sunxi_get_board_vendor_id(void)
             gpio_request(gpio[i], NULL);
             gpio_direction_input(gpio[i]);
             pin_val = gpio_get_value(gpio[i]);
+            gpio_free(gpio[i]);
         } else {
             printk(KERN_ERR"%s %d is invalid\n", __func__, gpio[i]);
             return -1;

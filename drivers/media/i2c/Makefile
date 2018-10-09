@@ -62,6 +62,11 @@ obj-$(CONFIG_VIDEO_UPD64031A) += upd64031a.o
 obj-$(CONFIG_VIDEO_UPD64083) += upd64083.o
 obj-$(CONFIG_VIDEO_OV2640) += ov2640.o
 obj-$(CONFIG_VIDEO_OV5640) += ov5640.o
+ifeq ($(CONFIG_ARM64),y)
+obj-$(CONFIG_VIDEO_OV5640) += ov5640_af_firmware_arm64.fo
+else
+obj-$(CONFIG_VIDEO_OV5640) += ov5640_af_firmware.fo
+endif
 obj-$(CONFIG_VIDEO_OV5645) += ov5645.o
 obj-$(CONFIG_VIDEO_OV5647) += ov5647.o
 obj-$(CONFIG_VIDEO_OV5670) += ov5670.o

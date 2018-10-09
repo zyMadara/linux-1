@@ -27,6 +27,9 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include "ov5640.h"
+
+#define OV5640_REG_SYS (1)
 
 /* min/typical/max system clock (xclk) frequencies */
 #define OV5640_XCLK_MIN  6000000
@@ -102,14 +105,6 @@ enum ov5640_mode_id {
 	OV5640_NUM_MODES,
 };
 
-enum ov5640_frame_rate {
-	OV5640_15_FPS = 0,
-	OV5640_30_FPS,
-	OV5640_7P5_FPS,
-	OV5640_5_FPS,
-	OV5640_NUM_FRAMERATES,
-};
-
 struct ov5640_pixfmt {
 	u32 code;
 	u32 colorspace;
@@ -138,15 +133,6 @@ static const int ov5640_framerates[] = {
 	[OV5640_5_FPS] = 5,
 };
 
-/* regulator supplies */
-static const char * const ov5640_supply_name[] = {
-	"DOVDD", /* Digital I/O (1.8V) suppply */
-	"DVDD",  /* Digital Core (1.5V) supply */
-	"AVDD",  /* Analog (2.8V) supply */
-};
-
-#define OV5640_NUM_SUPPLIES ARRAY_SIZE(ov5640_supply_name)
-
 /*
  * Image size under 1280 * 960 are SUBSAMPLING
  * Image size upper 1280 * 960 are SCALING
@@ -170,60 +156,6 @@ struct ov5640_mode_info {
 	u32 height;
 	const struct reg_value *reg_data;
 	u32 reg_data_size;
-};
-
-struct ov5640_ctrls {
-	struct v4l2_ctrl_handler handler;
-	struct {
-		struct v4l2_ctrl *auto_exp;
-		struct v4l2_ctrl *exposure;
-	};
-	struct {
-		struct v4l2_ctrl *auto_wb;
-		struct v4l2_ctrl *blue_balance;
-		struct v4l2_ctrl *red_balance;
-	};
-	struct {
-		struct v4l2_ctrl *auto_gain;
-		struct v4l2_ctrl *gain;
-	};
-	struct v4l2_ctrl *brightness;
-	struct v4l2_ctrl *saturation;
-	struct v4l2_ctrl *contrast;
-	struct v4l2_ctrl *hue;
-	struct v4l2_ctrl *test_pattern;
-};
-
-struct ov5640_dev {
-	struct i2c_client *i2c_client;
-	struct v4l2_subdev sd;
-	struct media_pad pad;
-	struct v4l2_fwnode_endpoint ep; /* the parsed DT endpoint info */
-	struct clk *xclk; /* system clock to OV5640 */
-	u32 xclk_freq;
-
-	struct regulator_bulk_data supplies[OV5640_NUM_SUPPLIES];
-	struct gpio_desc *reset_gpio;
-	struct gpio_desc *pwdn_gpio;
-
-	/* lock to protect all members below */
-	struct mutex lock;
-
-	int power_count;
-
-	struct v4l2_mbus_framefmt fmt;
-
-	const struct ov5640_mode_info *current_mode;
-	enum ov5640_frame_rate current_fr;
-	struct v4l2_fract frame_interval;
-
-	struct ov5640_ctrls ctrls;
-
-	u32 prev_sysclk, prev_hts;
-	u32 ae_low, ae_high, ae_target;
-
-	bool pending_mode_change;
-	bool streaming;
 };
 
 static inline struct ov5640_dev *to_ov5640_dev(struct v4l2_subdev *sd)
@@ -1207,6 +1139,10 @@ static int ov5640_set_stream_dvp(struct ov5640_dev *sensor, bool on)
 				       (pclk_pol << 5) |
 				       (hsync_pol << 1) |
 				       vsync_pol);
+
+		ret = ov5640_af_setting(sensor);
+		msleep(100);
+		ret = ov5640_af_continuous(sensor);
 
 		if (ret)
 			return ret;
@@ -2590,6 +2526,40 @@ power_off:
 	return ret;
 }
 
+#ifdef OV5640_REG_SYS
+static struct ov5640_dev * g_dev;
+static int sys_cur_reg = 0;
+
+static ssize_t ov5640_reg_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	int tmp, value;
+
+	value = 0;
+	tmp = simple_strtoul(buf, NULL, 16);
+	if (tmp < 0xffff) {  			 // reg(0xFFFF)
+		sys_cur_reg = tmp;
+	}	
+	else {							 // reg-value(0xFFFF-0XFFFF)
+		value = tmp & 0x0000FFFF;
+		sys_cur_reg= (tmp >> 16) & 0xFFFF;
+		ov5640_write_reg(g_dev, sys_cur_reg, value);
+	}
+	return count;
+}
+
+static ssize_t ov5640_reg_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	unsigned char value;
+	value = 0;
+	ov5640_read_reg(g_dev, sys_cur_reg, &value);
+	return sprintf(buf, "reg[0x%x]=%x\n", sys_cur_reg, value);
+}
+
+static struct device *ov5640_reg_dev;
+static struct class *ov5640_reg_class;
+static DEVICE_ATTR(ov5640_reg, S_IWUSR | S_IRUGO, ov5640_reg_show, ov5640_reg_store);
+#endif
+
 static int ov5640_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -2679,6 +2649,23 @@ static int ov5640_probe(struct i2c_client *client,
 	if (ret)
 		goto free_ctrls;
 
+#ifdef OV5640_REG_SYS
+	g_dev = sensor;
+
+	ov5640_reg_class = class_create(THIS_MODULE, "ov5640");
+	if (IS_ERR(ov5640_reg_class)) {
+		dev_info(dev,"[%s] failed to class_create ov5640\n", __func__);
+		ret = -1;
+		goto free_ctrls;
+	}
+	ov5640_reg_dev = device_create(ov5640_reg_class, NULL, MKDEV(0, 1), NULL, "dev");
+	ret = device_create_file(ov5640_reg_dev, &dev_attr_ov5640_reg);
+	if (ret < 0) {
+		dev_info(dev,"[%s] failed to device_create_file ov5640\n", __func__);
+		goto free_ctrls;
+	}
+#endif
+
 	return 0;
 
 free_ctrls:
@@ -2693,6 +2680,12 @@ static int ov5640_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct ov5640_dev *sensor = to_ov5640_dev(sd);
+
+#ifdef OV5640_REG_SYS
+	device_remove_file(ov5640_reg_dev, &dev_attr_ov5640_reg);
+	device_destroy(ov5640_reg_class, MKDEV(0, 1));
+	class_destroy(ov5640_reg_class);
+#endif
 
 	v4l2_async_unregister_subdev(&sensor->sd);
 	mutex_destroy(&sensor->lock);

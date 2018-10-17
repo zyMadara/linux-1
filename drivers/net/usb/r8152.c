@@ -4034,6 +4034,13 @@ static void r8152b_init(struct r8152 *tp)
 	ocp_data = ocp_read_word(tp, MCU_TYPE_USB, USB_USB_CTRL);
 	ocp_data &= ~(RX_AGG_DISABLE | RX_ZERO_EN);
 	ocp_write_word(tp, MCU_TYPE_USB, USB_USB_CTRL, ocp_data);
+
+	/* LED1: Act 10 +Act 100
+	 * LED0: Link 10 +Link 100
+	 */
+	ocp_data = ocp_read_byte(tp, MCU_TYPE_PLA, PLA_LEDSEL);
+	ocp_data = 0x83;
+	ocp_write_byte(tp, MCU_TYPE_PLA, PLA_LEDSEL, ocp_data);	
 }
 
 static void r8153_init(struct r8152 *tp)

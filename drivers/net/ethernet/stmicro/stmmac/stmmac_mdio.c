@@ -39,6 +39,8 @@
 #define MII_GMAC4_WRITE			(1 << MII_GMAC4_GOC_SHIFT)
 #define MII_GMAC4_READ			(3 << MII_GMAC4_GOC_SHIFT)
 
+static int phy_addr = 0x0;
+
 /**
  * stmmac_mdio_read
  * @bus: points to the mii_bus structure
@@ -126,6 +128,14 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 				  100, 10000);
 }
 
+void stmmac_mdio_close_eee_led(struct mii_bus *bus)
+{
+	stmmac_mdio_write(bus, phy_addr, 0x1f, 0x5);
+	stmmac_mdio_write(bus, phy_addr, 0x5, 0x8b82);
+	stmmac_mdio_write(bus, phy_addr, 0x6, 0x052b);
+	stmmac_mdio_write(bus, phy_addr, 0x1f, 0x0);
+}
+
 /**
  * stmmac_mdio_reset
  * @bus: points to the mii_bus structure
@@ -145,12 +155,12 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 			struct device_node *np = priv->device->of_node;
 
 			if (!np)
-				return 0;
+				goto reset_done;
 
 			data->reset_gpio = of_get_named_gpio(np,
 						"snps,reset-gpio", 0);
 			if (data->reset_gpio < 0)
-				return 0;
+				goto reset_done;
 
 			data->active_low = of_property_read_bool(np,
 						"snps,reset-active-low");
@@ -158,7 +168,7 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 				"snps,reset-delays-us", data->delays, 3);
 
 			if (gpio_request(data->reset_gpio, "mdio-reset"))
-				return 0;
+				goto reset_done;
 		}
 
 		gpio_direction_output(data->reset_gpio,
@@ -189,6 +199,9 @@ int stmmac_mdio_reset(struct mii_bus *bus)
 	if (!priv->plat->has_gmac4)
 		writel(0, priv->ioaddr + mii_address);
 #endif
+
+reset_done:
+	stmmac_mdio_close_eee_led(bus);
 	return 0;
 }
 
@@ -206,6 +219,7 @@ int stmmac_mdio_register(struct net_device *ndev)
 	struct device_node *mdio_node = priv->plat->mdio_node;
 	struct device *dev = ndev->dev.parent;
 	int addr, found;
+	struct device_node *child;
 
 	if (!mdio_bus_data)
 		return 0;
@@ -233,10 +247,19 @@ int stmmac_mdio_register(struct net_device *ndev)
 	new_bus->phy_mask = mdio_bus_data->phy_mask;
 	new_bus->parent = priv->device;
 
-	if (mdio_node)
+	if (mdio_node) {
+		// get phy_addr for close_eee_led in stmmac_mdio_reset()
+		for_each_available_child_of_node(mdio_node, child) {
+			phy_addr = of_mdio_parse_addr(&new_bus->dev, child);
+			if (phy_addr > 0) {
+				break;
+			}
+		}
+
 		err = of_mdiobus_register(new_bus, mdio_node);
-	else
+	} else {
 		err = mdiobus_register(new_bus);
+	}
 	if (err != 0) {
 		dev_err(dev, "Cannot register the MDIO bus\n");
 		goto bus_register_fail;

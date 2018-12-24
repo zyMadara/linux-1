@@ -32,6 +32,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/onenand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/clk.h>
 
 #include <asm/io.h>
 
@@ -65,37 +66,9 @@ MODULE_PARM_DESC(otp,	"Corresponding behaviour of OneNAND in OTP"
 			"	   : 2 -> 1st Block lock"
 			"	   : 3 -> BOTH OTP Block and 1st Block lock");
 
-/*
- * flexonenand_oob_128 - oob info for Flex-Onenand with 4KB page
- * For now, we expose only 64 out of 80 ecc bytes
- */
-static struct nand_ecclayout flexonenand_oob_128 = {
-	.eccbytes	= 64,
-	.eccpos		= {
-		6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-		22, 23, 24, 25, 26, 27, 28, 29, 30, 31,
-		38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
-		54, 55, 56, 57, 58, 59, 60, 61, 62, 63,
-		70, 71, 72, 73, 74, 75, 76, 77, 78, 79,
-		86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
-		102, 103, 104, 105
-		},
-	.oobfree	= {
-		{2, 4}, {18, 4}, {34, 4}, {50, 4},
-		{66, 4}, {82, 4}, {98, 4}, {114, 4}
-	}
-};
-
-/*
- * onenand_oob_128 - oob info for OneNAND with 4KB page
- *
- * Based on specification:
- * 4Gb M-die OneNAND Flash (KFM4G16Q4M, KFN8G16Q4M). Rev. 1.3, Apr. 2010
- *
- * For eccpos we expose only 64 bytes out of 72 (see struct nand_ecclayout)
- *
- * oobfree uses the spare area fields marked as
- * "Managed by internal ECC logic for Logical Sector Number area"
+/**
+ *  onenand_oob_128 - oob info for Flex-Onenand with 4KB page
+ *  For now, we expose only 64 out of 80 ecc bytes
  */
 static struct nand_ecclayout onenand_oob_128 = {
 	.eccbytes	= 64,
@@ -113,7 +86,6 @@ static struct nand_ecclayout onenand_oob_128 = {
 		{66, 4}, {82, 4}, {98, 4}, {114, 4}
 	}
 };
-
 
 /**
  * onenand_oob_64 - oob info for large (2KB) page
@@ -991,7 +963,8 @@ static int onenand_get_device(struct mtd_info *mtd, int new_state)
 		schedule();
 		remove_wait_queue(&this->wq, &wait);
 	}
-
+	if (this->clk && new_state != FL_PM_SUSPENDED)
+		clk_enable(this->clk);
 	return 0;
 }
 
@@ -1004,6 +977,9 @@ static int onenand_get_device(struct mtd_info *mtd, int new_state)
 static void onenand_release_device(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
+
+	if (this->clk && this->state != FL_PM_SUSPENDED)
+		clk_disable(this->clk);
 
 	if (this->state != FL_PM_SUSPENDED && this->disable)
 		this->disable(mtd);
@@ -3429,19 +3405,6 @@ static void onenand_check_features(struct mtd_info *mtd)
 		else if (numbufs == 1) {
 			this->options |= ONENAND_HAS_4KB_PAGE;
 			this->options |= ONENAND_HAS_CACHE_PROGRAM;
-			/*
-			 * There are two different 4KiB pagesize chips
-			 * and no way to detect it by H/W config values.
-			 *
-			 * To detect the correct NOP for each chips,
-			 * It should check the version ID as workaround.
-			 *
-			 * Now it has as following
-			 * KFM4G16Q4M has NOP 4 with version ID 0x0131
-			 * KFM4G16Q5M has NOP 1 with versoin ID 0x013e
-			 */
-			if ((this->version_id & 0xf) == 0xe)
-				this->options |= ONENAND_HAS_NOP_1;
 		}
 
 	case ONENAND_DEVICE_DENSITY_2Gb:
@@ -3962,11 +3925,13 @@ static void onenand_resume(struct mtd_info *mtd)
 {
 	struct onenand_chip *this = mtd->priv;
 
-	if (this->state == FL_PM_SUSPENDED)
+	if (this->state == FL_PM_SUSPENDED) {
+		onenand_invalidate_bufferram(mtd, 0, -1);
 		onenand_release_device(mtd);
-	else
+	} else {
 		printk(KERN_ERR "%s: resume() called for the chip which is not "
 				"in suspended state\n", __func__);
+	}
 }
 
 /**
@@ -4060,15 +4025,8 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	 */
 	switch (mtd->oobsize) {
 	case 128:
-		if (FLEXONENAND(this)) {
-			this->ecclayout = &flexonenand_oob_128;
-			mtd->subpage_sft = 0;
-		} else {
-			this->ecclayout = &onenand_oob_128;
-			mtd->subpage_sft = 2;
-		}
-		if (ONENAND_IS_NOP_1(this))
-			mtd->subpage_sft = 0;
+		this->ecclayout = &onenand_oob_128;
+		mtd->subpage_sft = 0;
 		break;
 	case 64:
 		this->ecclayout = &onenand_oob_64;

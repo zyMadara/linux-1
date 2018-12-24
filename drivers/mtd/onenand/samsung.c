@@ -244,7 +244,6 @@ static void s3c_dump_reg(void)
 }
 #endif
 
-#if 1 
 struct slsi_ptbl_entry {
 	char name[16];
 	__u32 offset;
@@ -294,7 +293,7 @@ static int __init parse_tag_partition(const struct tag *tag)
 	return 0;
 }
 __tagtable(ATAG_SLSI_PARTITION, parse_tag_partition);
-#endif
+
 static unsigned int s3c64xx_cmd_map(unsigned type, unsigned val)
 {
 	return (type << S3C64XX_CMD_MAP_SHIFT) | val;
@@ -761,7 +760,7 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 	}
 
 	if (offset & 3 || (size_t) buf & 3 ||
-		!onenand->dma_addr || count & 3)
+		!onenand->dma_addr || count != mtd->writesize)
 		goto normal;
 
 	/* Handle vmalloc address */
@@ -775,11 +774,13 @@ static int s5pc110_read_bufferram(struct mtd_info *mtd, int area,
 		if (!page)
 			goto normal;
 
+		/* Page offset */
+		ofs = ((size_t) buf & ~PAGE_MASK);
 		page_dma = 1;
 
 		/* DMA routine */
 		dma_src = onenand->phys_base + (p - this->base);
-		dma_dst = dma_map_page(dev, page, 0, count, DMA_FROM_DEVICE);
+		dma_dst = dma_map_page(dev, page, ofs, count, DMA_FROM_DEVICE);
 	} else {
 		/* DMA routine */
 		dma_src = onenand->phys_base + (p - this->base);
@@ -809,82 +810,6 @@ normal:
 
 	memcpy(buffer, p, count);
 
-	return 0;
-}
-
-static int s5pc110_write_bufferram(struct mtd_info *mtd, int area,
-				   const unsigned char *buffer, int offset,
-				   size_t count)
-{
-	struct onenand_chip *this = mtd->priv;
-	void __iomem *p;
-	void __iomem *bufferram;
-	void *buf = (void *) buffer;
-	dma_addr_t dma_src, dma_dst;
-	int err;
-
-	p = bufferram = this->base + area;
-	if (ONENAND_CURRENT_BUFFERRAM(this)) {
-		if (area == ONENAND_DATARAM)
-			p += this->writesize;
-		else
-			p += mtd->oobsize;
-	}
-
-	if (offset & 3 || (size_t) buf & 3 ||
-		!onenand->dma_addr || count & 3)
-		goto normal;
-
-	/* Handle vmalloc address */
-	if (buf >= high_memory) {
-		struct page *page;
-
-		if (((size_t) buf & PAGE_MASK) !=
-		    ((size_t) (buf + count - 1) & PAGE_MASK))
-			goto normal;
-		page = vmalloc_to_page(buf);
-		if (!page)
-			goto normal;
-		buf = page_address(page) + ((size_t) buf & ~PAGE_MASK);
-	}
-
-	dma_src = dma_map_single(&onenand->pdev->dev,
-			buf, count, DMA_TO_DEVICE);
-	if (dma_mapping_error(&onenand->pdev->dev, dma_src)) {
-		dev_err(&onenand->pdev->dev,
-			"Couldn't map a %d byte buffer for DMA\n", count);
-		goto normal;
-	}
-	dma_dst = onenand->phys_base + (p - this->base);
-
-	err = s5pc110_dma_ops((void *) dma_dst, (void *) dma_src,
-			count, S5PC110_DMA_DIR_WRITE);
-	dma_unmap_single(&onenand->pdev->dev, dma_src, count, DMA_TO_DEVICE);
-
-	if (!err)
-		return 0;
-	else
-		dev_err(&onenand->pdev->dev,
-			"Couldn't write a %d byte buffer for DMA\n", count);
-
-normal:
-	if (ONENAND_CHECK_BYTE_ACCESS(count)) {
-		unsigned short word;
-		int byte_offset;
-
-		/* Align with word(16-bit) size */
-		count--;
-
-		/* Calculate byte access offset */
-		byte_offset = offset + count;
-
-		/* Read word and save byte */
-		word = this->read_word(bufferram + byte_offset);
-		word = (word & ~0xff) | buffer[count];
-		this->write_word(word, bufferram + byte_offset);
-	}
-
-	memcpy(p + offset, buffer, count);
 	return 0;
 }
 
@@ -1020,7 +945,6 @@ static void s3c_onenand_setup(struct mtd_info *mtd)
 	} else if (onenand->type == TYPE_S5PC110) {
 		/* Use generic onenand functions */
 		this->read_bufferram = s5pc110_read_bufferram;
-		this->write_bufferram = s5pc110_write_bufferram;
 		this->chip_probe = s5pc110_chip_probe;
 		return;
 	} else {
@@ -1237,6 +1161,7 @@ static int s3c_onenand_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mtd);
 
+	clk_disable(this->clk);
 	return 0;
 
 scan_failed:
@@ -1297,7 +1222,6 @@ static int __devexit s3c_onenand_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	kfree(onenand->oob_buf);
 	kfree(onenand->page_buf);
-	clk_disable(this->clk);
 	clk_put(this->clk);
 	kfree(onenand);
 	kfree(mtd);
@@ -1312,6 +1236,7 @@ static  int s3c_pm_ops_resume(struct device *dev)
 
 	clk_enable(this->clk);
 	this->unlock_all(mtd);
+	clk_disable(this->clk);
 	return 0;
 }
 

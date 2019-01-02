@@ -76,6 +76,30 @@
 		rfkill-name = "sunxi-bt";
 		rfkill-type = "bluetooth";
 	};
+
+	leds {
+		/delete-node/ status;
+		/delete-node/ pwr;
+		led1 {
+			label = "LED1";
+			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		led2 {
+			label = "LED2";
+			gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "netdev";
+		};
+
+		led3 {
+			label = "LED3";
+			gpios = <&pio 0 9 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+			linux,default-trigger = "netdev";
+		};
+	};
 };
 
 &pio {

@@ -23,6 +23,32 @@
 
 /* s3cfb configs for supported LCD */
 
+static struct s3cfb_lcd wvga_s430 = {
+	.width= 480,
+	.height = 800,
+	.p_width = 56,
+	.p_height = 94,
+	.bpp = 24,
+	.freq = 60,
+
+	.timing = {
+		.h_fp = 64,
+		.h_bp = 0,
+		.h_sw = 16,
+		.v_fp = 32,
+		.v_fpe = 1,
+		.v_bp = 0,
+		.v_bpe = 1,
+		.v_sw = 16,
+	},
+	.polarity = {
+		.rise_vclk = 1,
+		.inv_hsync = 1,
+		.inv_vsync = 1,
+		.inv_vden = 0,
+	},
+};
+
 static struct s3cfb_lcd wsvga_x710 = {
 	.width = 1024,
 	.height = 600,
@@ -503,11 +529,12 @@ static struct {
 	struct s3cfb_lcd *lcd;
 	int ctp;
 } mini210_lcd_config[] = {
-	{ "X710",	&wsvga_x710, CTP_ITE7260 },
+	{ "S430",	&wvga_s430,  1 },
 	{ "S70",	&wvga_s70,   1 },
-	{ "S70D",	&wvga_s70d,  1 },
+	{ "S701",	&wvga_s70,   CTP_GT9XX   },
 	{ "S702",	&wvga_s70,   1 },
-	{ "S701",   &wvga_s70,   CTP_GT9XX },
+	{ "S70D",	&wvga_s70d,  1 },
+	{ "X710",	&wsvga_x710, CTP_ITE7260 },
 	{ "HD700",	&wxga_hd700, 1 },
 	{ "HD702",	&wxga_hd700, CTP_GOODIX  },
 

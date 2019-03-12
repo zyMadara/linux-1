@@ -75,7 +75,9 @@
 #define TO_PERIOD_NS(freq)	(NS_IN_HZ/(freq))
 #define TO_DUTY_NS(duty, freq)  (duty ? TO_PERIOD_NS(freq)/(100/duty) : 0)
 
-#ifdef CONFIG_V4L2_INIT_LEVEL_UP
+#if defined(CONFIG_MACH_NANOPI2) || defined(CONFIG_MACH_NANOPI3) || \
+	defined(CONFIG_V4L2_INIT_LEVEL_UP)
+#define NX_CLPPER_INIT_CUSTOM	1
 struct task_struct *g_ClipperThread;
 #endif
 
@@ -228,7 +230,7 @@ struct nx_clipper {
 	/* for suspend */
 	struct nx_video_buffer *last_buf;
 
-#ifdef CONFIG_V4L2_INIT_LEVEL_UP
+#ifdef NX_CLPPER_INIT_CUSTOM
 	struct workqueue_struct *w_queue;
 	struct delayed_work w_delay;
 #endif
@@ -1984,32 +1986,38 @@ static int setup_link(struct media_pad *src, struct media_pad *dst)
 
 static int register_sensor_subdev(struct nx_clipper *me)
 {
-	int ret;
+	struct device *dev = &me->pdev->dev;
+	struct nx_v4l2_i2c_board_info *info = &me->sensor_info;
 	struct i2c_adapter *adapter;
 	struct v4l2_subdev *sensor;
 	struct i2c_client *client;
 	struct media_entity *input;
 	u32 pad;
-	struct nx_v4l2_i2c_board_info *info = &me->sensor_info;
+	int ret;
 
 	adapter = i2c_get_adapter(info->i2c_adapter_id);
 	if (!adapter) {
-		dev_err(&me->pdev->dev, "unable to get sensor i2c adapter\n");
+		dev_err(dev, "unable to get sensor i2c adapter\n");
 		return -ENODEV;
 	}
 
+	request_module(I2C_MODULE_PREFIX "%s", info->board_info.type);
 	client = i2c_new_device(adapter, &info->board_info);
-	if (client == NULL || client->dev.driver == NULL) {
-		dev_err(&me->pdev->dev, "i2c_new_device fail\n");
+	if (!client) {
+		ret = -ENODEV;
+		goto error;
+	} else if (!client->dev.driver) {
+		dev_err(&client->dev, "driver '%s' not found\n",
+			info->board_info.type);
 		ret = -ENODEV;
 		goto error;
 	}
 
 	if (!try_module_get(client->dev.driver->owner)) {
-		dev_err(&me->pdev->dev, "try_module_get fail\n");
 		ret = -ENODEV;
 		goto error;
 	}
+
 	sensor = i2c_get_clientdata(client);
 	sensor->host_priv = info;
 
@@ -2019,13 +2027,13 @@ static int register_sensor_subdev(struct nx_clipper *me)
 
 	ret = init_sensor_media_entity(me, sensor);
 	if (ret) {
-		dev_err(&me->pdev->dev, "failed to init sensor media entity\n");
+		dev_err(dev, "failed to init sensor media entity\n");
 		goto error;
 	}
 
 	ret  = nx_v4l2_register_subdev(sensor);
 	if (ret) {
-		dev_err(&me->pdev->dev, "failed to register subdev sensor\n");
+		dev_err(dev, "failed to register subdev sensor\n");
 		goto error;
 	}
 
@@ -2034,15 +2042,14 @@ static int register_sensor_subdev(struct nx_clipper *me)
 
 		mipi_csi = nx_v4l2_get_subdev("nx-csi");
 		if (!mipi_csi) {
-			dev_err(&me->pdev->dev, "can't get mipi_csi subdev\n");
+			dev_err(dev, "can't get mipi_csi subdev\n");
 			goto error;
 		}
 
 		ret = media_entity_create_link(&mipi_csi->entity, 1,
 					       &me->subdev.entity, 0, 0);
 		if (ret < 0) {
-			dev_err(&me->pdev->dev,
-				"failed to create link from csi to clipper\n");
+			dev_err(dev, "failed to create link from csi to clipper\n");
 			goto error;
 		}
 
@@ -2060,15 +2067,17 @@ static int register_sensor_subdev(struct nx_clipper *me)
 
 	ret = media_entity_create_link(&sensor->entity, 0, input, pad, 0);
 	if (ret < 0)
-		dev_err(&me->pdev->dev,
-			"failed to create link from sensor\n");
+		dev_err(dev, "failed to create link from sensor\n");
 
 	ret = setup_link(&sensor->entity.pads[0], &input->pads[pad]);
 	if (ret)
 		BUG();
 
+	return ret;
+
 error:
-	if (client && ret < 0)
+	i2c_put_adapter(adapter);
+	if (client)
 		i2c_unregister_device(client);
 
 	return ret;
@@ -2083,7 +2092,7 @@ static int register_v4l2(struct nx_clipper *me)
 
 	ret = register_sensor_subdev(me);
 	if (ret) {
-		dev_info(&me->pdev->dev, "can't register sensor subdev\n");
+		dev_dbg(&me->pdev->dev, "can't register sensor subdev\n");
 		return ret;
 	}
 
@@ -2201,7 +2210,7 @@ static const struct dev_pm_ops nx_clipper_pm_ops = {
 };
 #endif
 
-#ifdef CONFIG_V4L2_INIT_LEVEL_UP
+#ifdef NX_CLPPER_INIT_CUSTOM
 static int init_clipper_th(void *args)
 {
 	int ret = 0;
@@ -2245,9 +2254,8 @@ static void init_clipper_work(struct work_struct *work)
 	ret = register_v4l2(me);
 	if (ret)
 		return;
-
 }
-#endif
+#endif /* NX_CLPPER_INIT_CUSTOM */
 
 /**
  * platform driver
@@ -2257,41 +2265,44 @@ static int nx_clipper_probe(struct platform_device *pdev)
 	int ret;
 	struct nx_clipper *me;
 	struct device *dev = &pdev->dev;
-	struct i2c_adapter *adapter;
-	struct nx_v4l2_i2c_board_info *info;
-	int timeout = 600; /* 60 second */
 
 	me = devm_kzalloc(dev, sizeof(*me), GFP_KERNEL);
 	if (!me) {
 		WARN_ON(1);
 		return -ENOMEM;
 	}
+
 	me->pdev = pdev;
 	ret = nx_clipper_parse_dt(dev, me);
 	if (ret) {
 		dev_err(dev, "failed to parse dt\n");
 		return ret;
 	}
-#ifndef CONFIG_V4L2_INIT_LEVEL_UP
+
+#ifdef NX_CLPPER_INIT_CUSTOM
+	if (me->module == 1) {
+		if (g_ClipperThread == NULL)
+			g_ClipperThread = kthread_run(init_clipper_th,
+				me, "KthreadForNxClipper");
+	}
+
+	if (me->module == 0) {
+#if defined(CONFIG_MACH_NANOPI2) || defined(CONFIG_MACH_NANOPI3)
+/* long delay for sensor driver built as module */
+#define INIT_DELAY_MS	(25*1000)
+#else
+#define INIT_DELAY_MS	( 2*1000)
+#endif
+		me->w_queue = create_singlethread_workqueue("clipper_wqueue");
+		INIT_DELAYED_WORK(&me->w_delay, init_clipper_work);
+
+		queue_delayed_work(me->w_queue, &me->w_delay,
+							msecs_to_jiffies(INIT_DELAY_MS));
+	}
+#else
 	if (!nx_vip_is_valid(me->module)) {
 		dev_err(dev, "NX VIP %d is not valid\n", me->module);
 		return -ENODEV;
-	}
-
-	info = &me->sensor_info;
-	adapter = i2c_get_adapter(info->i2c_adapter_id);
-	if (!adapter) {
-		dev_err(&me->pdev->dev, "unable to get sensor i2c adapter\n");
-		return -ENODEV;
-	}
-
-	while (request_module(I2C_MODULE_PREFIX "%s", info->board_info.type)) {
-		msleep(100);
-		if (--timeout == 0) {
-			dev_err(&me->pdev->dev, "timeout for loading %s module\n",
-					info->board_info.type);
-			return -ENODEV;
-		}
 	}
 
 	init_me(me);
@@ -2303,21 +2314,8 @@ static int nx_clipper_probe(struct platform_device *pdev)
 	ret = register_v4l2(me);
 	if (ret)
 		return ret;
-#else
-	if (me->module == 1) {
-		if (g_ClipperThread == NULL)
-			g_ClipperThread = kthread_run(init_clipper_th,
-				me, "KthreadForNxClipper");
-	}
 
-	if (me->module == 0) {
-		me->w_queue = create_singlethread_workqueue("clipper_wqueue");
-		INIT_DELAYED_WORK(&me->w_delay, init_clipper_work);
-
-		queue_delayed_work(me->w_queue, &me->w_delay,
-							msecs_to_jiffies(2000));
-	}
-#endif
+#endif /* NX_CLPPER_INIT_CUSTOM */
 
 	me->buffer_underrun = false;
 	me->buf.addr = NULL;
@@ -2340,8 +2338,8 @@ static int nx_clipper_remove(struct platform_device *pdev)
 	if (unlikely(!me))
 		return 0;
 
-#ifdef CONFIG_V4L2_INIT_LEVEL_UP
-	if (me->module == 1) {
+#ifdef NX_CLPPER_INIT_CUSTOM
+	if (me->w_queue) {
 		cancel_delayed_work(&me->w_delay);
 		flush_workqueue(me->w_queue);
 		destroy_workqueue(me->w_queue);

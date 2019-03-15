@@ -806,16 +806,14 @@ endif
 ifneq ($(CONFIG_ARCH_S5P6818),)
 DHDOFILES += dhd_custom_exynos.o
 endif
-ifneq ($(CONFIG_ARCH_S5P4418),)
+ifneq ($(CONFIG_MACH_NANOPI2),)
 DHDOFILES += dhd_custom_exynos.o
-endif
-endif
-
-ifeq ($(CONFIG_OF),y)
+else
 ifneq ($(CONFIG_ARCH_S5P4418),)
 DHDOFILES += dhd_custom_nexell.o
 endif
 endif
+endif ### CONFIG_OF ###
 
 # For SPI projects
 ifeq ($(CONFIG_SPI_SC8810),y)

@@ -652,6 +652,28 @@ int stmmac_pltfr_remove(struct platform_device *pdev)
 }
 EXPORT_SYMBOL_GPL(stmmac_pltfr_remove);
 
+/**
+ * stmmac_pltfr_shutdown
+ * @pdev: platform device pointer
+ * Description: this function calls the main to free the net resources
+ * and calls the platforms hook and release the resources (e.g. mem).
+ */
+void stmmac_pltfr_shutdown(struct platform_device *pdev)
+{
+	struct net_device *ndev = platform_get_drvdata(pdev);
+	struct stmmac_priv *priv = netdev_priv(ndev);
+	struct plat_stmmacenet_data *plat = priv->plat;
+	int ret = stmmac_dvr_remove(&pdev->dev);
+
+	if (plat->exit)
+		plat->exit(pdev, plat->bsp_priv);
+
+	stmmac_remove_config_dt(pdev, plat);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(stmmac_pltfr_shutdown);
+
 #ifdef CONFIG_PM_SLEEP
 /**
  * stmmac_pltfr_suspend

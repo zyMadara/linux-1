@@ -30,6 +30,7 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 				  struct stmmac_resources *stmmac_res);
 
 int stmmac_pltfr_remove(struct platform_device *pdev);
+void stmmac_pltfr_shutdown(struct platform_device *pdev);
 extern const struct dev_pm_ops stmmac_pltfr_pm_ops;
 
 static inline void *get_stmmac_bsp_priv(struct device *dev)

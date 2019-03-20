@@ -994,6 +994,7 @@ MODULE_DEVICE_TABLE(of, sun8i_dwmac_match);
 static struct platform_driver sun8i_dwmac_driver = {
 	.probe  = sun8i_dwmac_probe,
 	.remove = stmmac_pltfr_remove,
+	.shutdown = stmmac_pltfr_shutdown,
 	.driver = {
 		.name           = "dwmac-sun8i",
 		.pm		= &stmmac_pltfr_pm_ops,

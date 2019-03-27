@@ -561,7 +561,7 @@ static struct lcd_desc *panel_get_lcd_desc(void)
 	return panel_lcd_list[lcd_idx].lcd;
 }
 
-static int __init panel_setup_lcd(char *str)
+static int panel_setup_lcd(char *str)
 {
 	char *delim;
 	int i;

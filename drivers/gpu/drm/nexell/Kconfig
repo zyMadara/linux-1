@@ -37,15 +37,15 @@ config DRM_NX_NXP5XXX
 endchoice
 
 config DRM_CHECK_PRE_INIT
-        bool "Don't reinitialize, use bootloader's Display configuration"
-        depends on DRM
+	bool "Don't reinitialize, use bootloader's Display configuration"
+	depends on DRM_NX
 	select FB_PRE_INIT_FB
-        default n
-        help
+	default n
+	help
 	 Select this option if display contents should be inherited as set by
 	 the bootloader.
 
-          If in doubt, say "N".
+	 If in doubt, say "N".
 
 config DRM_NX_RGB
 	bool "RGB LCD support"
@@ -120,7 +120,7 @@ config DRM_CHECK_IOCTL_AUTH
 	 Choose this option if you need check authentication
 	 for modesetting driver
 
-	  If in doubt, say "Y".
+	 If in doubt, say "Y".
 
 config DRM_NX_FB_PAN_DISPLAY
 	bool "Support pan display for DRM frame buffer"
@@ -130,5 +130,5 @@ config DRM_NX_FB_PAN_DISPLAY
 	 Choose this option if you need support frame buffer pan display
 	 for modesetting driver
 
-	  If in doubt, say "Y".
+	 If in doubt, say "Y".
 

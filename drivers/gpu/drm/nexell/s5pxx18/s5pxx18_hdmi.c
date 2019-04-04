@@ -995,6 +995,7 @@ static int hdmi_ops_get_mode(struct nx_drm_display *display,
 	vm.vfront_porch = pmode->v_fp;
 	vm.vback_porch = pmode->v_bp;
 	vm.vsync_len = pmode->v_sw;
+	vm.flags = 0;
 
 	drm_display_mode_from_videomode(&vm, mode);
 

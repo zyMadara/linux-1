@@ -136,6 +136,9 @@ static int panel_hdmi_preferred_modes(struct device *dev,
 
 		drm_display_mode_from_videomode(vm, mode);
 		mode->vrefresh = display->vrefresh;
+#if defined(CONFIG_DRM_PANEL_FRIENDLYELEC)
+		panel_init_display_mode(mode);
+#endif
 
 		err = hdmi_ops->get_mode(display, mode);
 		if (err)
@@ -148,9 +151,6 @@ static int panel_hdmi_preferred_modes(struct device *dev,
 		connector->display_info.height_mm = mode->height_mm;
 
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
-#if defined(CONFIG_DRM_PANEL_FRIENDLYELEC)
-		panel_init_display_mode(mode);
-#endif
 
 		drm_mode_set_name(mode);
 		drm_mode_probed_add(connector, mode);

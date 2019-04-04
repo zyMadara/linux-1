@@ -67,6 +67,7 @@
         pcm5102a = &pcm5102a;
         spidev0 = &spidev0;
         spiflash = &spiflash;
+        spioled = &spioled;
         pitft = &pitft;
         pitft_ts = &pitft_ts;
 		ir = &ir;
@@ -313,6 +314,20 @@
             reg = <0x0 0x1000000>;
             label = "spi-flash";
         };
+    };
+
+    spioled: spioled@0{
+        compatible = "solomon,ssd1306";
+        reg = <0>;
+        status = "disabled";
+
+        spi-max-frequency = <1000000>;
+        rotate = <0>;
+        fps = <30>;
+        buswidth = <8>;
+        dc-gpios = <&pio 0 1 GPIO_ACTIVE_LOW>;     /* PA1 */
+        reset-gpios = <&pio 6 11 GPIO_ACTIVE_LOW>; /* PG11 */
+        debug = <0x0>;
     };
 
     pitft: pitft@0{

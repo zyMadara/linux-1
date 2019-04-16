@@ -152,6 +152,8 @@ struct hfi1_ib_stats {
 extern struct hfi1_ib_stats hfi1_stats;
 extern const struct pci_error_handlers hfi1_pci_err_handler;
 
+extern int num_driver_cntrs;
+
 /*
  * First-cut criterion for "device is active" is
  * two thousand dwords combined Tx, Rx traffic per
@@ -1396,7 +1398,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
-void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
@@ -1851,6 +1853,7 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_HAS_SDMA_TIMEOUT  0x8
 #define HFI1_HAS_SEND_DMA      0x10   /* Supports Send DMA */
 #define HFI1_FORCED_FREEZE     0x80   /* driver forced freeze mode */
+#define HFI1_SHUTDOWN          0x100  /* device is shutting down */
 
 /* IB dword length mask in PBC (lower 11 bits); same for all chips */
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)

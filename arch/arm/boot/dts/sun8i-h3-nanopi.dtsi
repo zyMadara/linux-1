@@ -205,13 +205,10 @@
 		816000	1100000
 		624000	1100000
 		480000	1100000
-		312000	1100000
-		240000	1100000
-		120000	1100000
 		>;
 	#cooling-cells = <2>;
 	cooling-min-level = <0>;
-	cooling-max-level = <6>;
+	cooling-max-level = <3>;
 	cpu0-supply = <&vdd_cpux>;
 };
 

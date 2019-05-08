@@ -284,6 +284,7 @@ static int parse_sensor_i2c_board_info_dt(struct device_node *np,
 
 	strlcpy(info->board_info.type, name, sizeof(info->board_info.type));
 	info->board_info.addr = addr;
+	info->board_info.of_node = np;
 	info->i2c_adapter_id = adapter;
 
 	return 0;

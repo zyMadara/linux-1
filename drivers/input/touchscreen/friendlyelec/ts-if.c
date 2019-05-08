@@ -91,9 +91,20 @@ static long _ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
+#ifdef CONFIG_COMPAT
+static long _compat_ioctl(struct file *file,
+			  unsigned int cmd, unsigned long arg)
+{
+	return _ioctl(file, cmd, arg);
+}
+#endif
+
 static struct file_operations dev_fops = {
 	.owner	= THIS_MODULE,
 	.unlocked_ioctl	= _ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= _compat_ioctl,
+#endif
 };
 
 static struct miscdevice misc = {

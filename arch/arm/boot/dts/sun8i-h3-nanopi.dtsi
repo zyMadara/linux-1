@@ -215,22 +215,22 @@
 &cpu_thermal {
 	trips {
 		cpu_warm: cpu_warm {
-			temperature = <65000>;
+			temperature = <60000>;
 			hysteresis = <2000>;
 			type = "passive";
 		};
 		cpu_hot: cpu_hot {
-			temperature = <75000>;
+			temperature = <70000>;
 			hysteresis = <2000>;
 			type = "passive";
 		};
 		cpu_very_hot: cpu_very_hot {
-			temperature = <90000>;
+			temperature = <80000>;
 			hysteresis = <2000>;
 			type = "passive";
 		};
 		cpu_crit: cpu_crit {
-			temperature = <105000>;
+			temperature = <100000>;
 			hysteresis = <2000>;
 			type = "critical";
 		};
@@ -243,11 +243,11 @@
 		};
 		cpu_hot_limit_cpu {
 			trip = <&cpu_hot>;
-			cooling-device = <&cpu0 2 3>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 2>;
 		};
 		cpu_very_hot_limit_cpu {
 			trip = <&cpu_very_hot>;
-			cooling-device = <&cpu0 5 THERMAL_NO_LIMIT>;
+			cooling-device = <&cpu0 3 THERMAL_NO_LIMIT>;
 		};
 	};
 };

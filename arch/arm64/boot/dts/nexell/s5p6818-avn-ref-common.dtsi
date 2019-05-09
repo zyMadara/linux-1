@@ -55,7 +55,6 @@
 		#include "s5p6818-pinctrl.dtsi"
 		clocks {
 			uart3:uart@c00ab000 { clock-frequency = <147500000>; };
-			vip0:vip@c00c1000 { src-force = <4>; };
 			i2c2:i2c@c00b0000  { clock-frequency = <200000000>; };
 			pwm0:pwm0@c00ba000 {
 				clk-input = <I_PLL2>;
@@ -74,6 +73,11 @@
 				clock-frequency = <10000000>;
 			};
 		};
+
+                dynamic-freq@bb000 {
+                        supply_name = "vdd_core_regulator";
+                        vdd_core_regulator-supply = <&VCC_DCDC0>;
+                };
 
 		serial0:serial@c00a1000 {
 			dmas = <&pl08xdma0 2>, <&pl08xdma0 3>;
@@ -169,6 +173,37 @@
 			nexell,sample_dly = <0x00>;
 			nexell,sample_shift = <0x01>;
 			status = "okay";
+		};
+
+		tmuctrl_0: tmuctrl@c0096000 {
+			status = "okay";
+		};
+
+		thermal-zones {
+			cpu0_thermal: cpu0-thermal {
+				thermal-sensors = <&tmuctrl_0>;
+				polling-delay-passive = <1000>;
+				polling-delay = <1000>;
+				trips {
+					cpu_alert0: cpu-alert-0 {
+						temperature = <85000>;
+						hysteresis = <10000>;
+						type = "active";
+					};
+					cpu-crit-0 {
+						temperature = <115000>;
+						hysteresis = <100000>;
+						type = "critical";
+					};
+				};
+
+				cooling-maps {
+					map0 {
+						trip = <&cpu_alert0>;
+						cooling-device = <&cpu0 6 10>;
+					};
+				};
+			};
 		};
 
 		spdif_tx: spdiftx@c0059000 {
@@ -283,15 +318,6 @@
 				nexell,pin-strength = <0>;
 			};
 		};
-
-		regulators {
-			VCC_DCDC1:dcdc2 { PMIC_PDATA_INIT( 1,
-				"nxe2000_dcdc2",
-                                1000000, 1500000,
-				1200000, 1, 0, 0x4)
-                                regulator-always-on;
-                                regulator-boot-on;};
-			}; /* regulators */
 
 		scaler@c0066000 {
 			status = "okay";
@@ -462,6 +488,7 @@
 		};
 
 		simple-audio-card,dai-link@2 {
+		    format = "spdif";
 		    cpu {
 			sound-dai = <&spdif_tx 0>;
 		    };
@@ -536,9 +563,60 @@
 		default-brightness-level = <45>;
 		status = "okay";
 	};
+
+	decimator_3:decimator3@c0063000 {
+		compatible = "nexell,nx-decimator";
+		module = <0>;
+		logical = <1>;
+		logical_num = <0>;
+		status = "okay";
+	};
+
+	clipper_3:clipper3@c0063000 {
+		compatible = "nexell,nx-clipper";
+		module = <0>;
+		logical = <1>;
+		logical_num = <0>;
+		interface_type = <NX_CAPTURE_INTERFACE_MIPI_CSI>;
+		gpios = <&gpio_b 23 0>;
+		data_order = <NX_VIN_CBY0CRY1>;
+		port = <1>;
+		external_sync = <0>;
+		interlace = <0>;
+		clock_source = <4>;
+		clock_frequency = <300000000>;
+		status = "okay";
+
+		sensor {
+			type = <NX_CAPTURE_SENSOR_I2C>;
+			i2c_name = "tw9992";
+			i2c_adapter = <3>;
+			addr = <0x3d>;
+		};
+
+		power {
+			enable_seq = <
+				NX_ACTION_START NX_ACTION_TYPE_GPIO 0 1 1 0 10 1 10 NX_ACTION_END
+				>;
+
+			disable_seq = <
+				NX_ACTION_START NX_ACTION_TYPE_GPIO 0 0 1 NX_ACTION_END
+				>;
+		};
+	};
+
+};
+
+&deinterlacer {
+	status = "okay";
 };
 
 &vip_0 {
+	clk-base = <0xc00c1000>;
+	status = "okay";
+};
+
+&decimator_0 {
 	status = "okay";
 };
 
@@ -551,6 +629,7 @@
 	port = <0>;
 	external_sync = <0>;
 	interlace = <1>;
+	clock_source = <4>;
 	status = "okay";
 
 	sensor {
@@ -569,6 +648,47 @@
 	};
 };
 
+#include "tw9900_rearcam_regset.dtsi"
+&rearcam {
+	rotation = <0>;
+	rear_cam_dev = <&clipper_0>;
+	sensor_reg = <&sensor_tw9900>;
+	display = <&dp_drm>;
+	dp_drm_dev = <&dp_drm_lvds>;
+	width = <704>;
+	height = <480>;
+	skip_frame = <0>;
+	status = "okay";
+
+	gpio {
+		event-gpio = <&alive_0 3 0>;
+		active_high = <0>;
+		detect_delay = <0>;
+	};
+
+	deinterlace {
+		use = <0>;
+		divide_frame = <0>;
+		is_odd_first = <1>;
+	};
+
+	mlc {
+		module = <0>;
+		format = <0x06530000>;
+	};
+
+	dpc {
+		module = <0>;
+	};
+};
+
+&mipi_csi {
+	data_lane = <2>;
+	pllval = <750>;
+	hssettle = <7>;
+	status = "okay";
+};
+
 &dp_drm {
 	status = "okay";
 	ports {
@@ -576,7 +696,7 @@
 			reg = <0>;
 			back_color = < 0x0 >;
 			color_key = < 0x0 >;
-			plane-names = "video", "primary", "rgb";
+			plane-names = "rgb", "primary", "video";
 		};
 		port@1 {
 			reg = <1>;
@@ -634,3 +754,137 @@
 		ti,x-plate-ohms = <180>;
 	};
 };
+
+&i2c_gpio7 {
+	compatible = "i2c-gpio";
+	gpios = <&gpio_e 8 0		/* SDA */
+		&gpio_e 9 0		/* SCL */
+			>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	nxe2000@32 {
+		compatible = "nexell,nxe2000";
+		reg = <0x32>;
+		interrupt-parent = <&alive_0>;
+		interrupts = <0x5 IRQ_TYPE_EDGE_FALLING>;
+
+		regulators {
+			VCC_DCDC0:
+				dcdc1	{ PMIC_PDATA_INIT( 0,
+					"nxe2000_dcdc1",
+					900000, 1500000,
+					1100000, 1, 0, 0x4)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_DCDC1:
+				dcdc2	{ PMIC_PDATA_INIT( 1,
+					"nxe2000_dcdc2",
+					1000000, 1500000,
+					1200000, 1, 0, 0x4)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_DCDC2:
+				dcdc3	{ PMIC_PDATA_INIT( 2,
+					"nxe2000_dcdc3",
+					1000000, 3500000,
+					3300000, 1, 1, 0x0)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_DCDC3:
+				dcdc4	{ PMIC_PDATA_INIT( 3,
+					"nxe2000_dcdc4",
+					1000000, 2000000,
+					1500000, 1, 0, 0xF)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_DCDC4:
+				dcdc5	{ PMIC_PDATA_INIT( 4,
+					"nxe2000_dcdc5",
+					1000000, 2000000,
+					1500000, 1, 0, 0x4)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_LDO0:
+				ldo1	{ PMIC_PDATA_INIT( 5,
+					"nxe2000_ldo1",
+					1000000, 3500000,
+					3300000, 0, 1, 0x0)
+					regulator-boot-on;};
+			VCC_LDO1:
+				ldo2	{ PMIC_PDATA_INIT( 6,
+					"nxe2000_ldo2",
+					1000000, 3500000,
+					3300000, 0, 1, 0x0)
+					regulator-boot-on;};
+			VCC_LDO2:
+				ldo3	{ PMIC_PDATA_INIT( 7,
+					"nxe2000_ldo3",
+					1000000, 3500000,
+					1800000, 1, 1, 0x2)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_LDO3:
+				ldo4	{ PMIC_PDATA_INIT( 8,
+					"nxe2000_ldo4",
+					1000000, 3500000,
+					1800000, 1, 1, 0x2)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_LDO4:
+				ldo5	{ PMIC_PDATA_INIT( 9,
+					"nxe2000_ldo5",
+					1000000, 3500000,
+					3300000, 0, 1, 0x0)
+					regulator-boot-on;};
+			VCC_LDO5:
+				ldo6	{ PMIC_PDATA_INIT(10,
+					"nxe2000_ldo6",
+					1000000, 3500000,
+					3300000, 1, 1, 0xF)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_LDO6:
+				ldo7	{ PMIC_PDATA_INIT(11,
+					"nxe2000_ldo7",
+					1000000, 3500000,
+					3300000, 1, 1, 0x1)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_LDO7:
+				ldo8	{ PMIC_PDATA_INIT(12,
+					"nxe2000_ldo8",
+					1000000, 3500000,
+					3300000, 0, 1, 0x0)
+					regulator-boot-on;};
+			VCC_LDO8:
+				ldo9	{ PMIC_PDATA_INIT(13,
+					"nxe2000_ldo9",
+					1000000, 3500000,
+					1800000, 0, 1, 0x0)
+					regulator-boot-on;};
+			VCC_LDO9:
+				ldo10	{ PMIC_PDATA_INIT(14,
+					"nxe2000_ldo10",
+					1000000, 3500000,
+					1200000, 1, 1, 0x0)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_RTC0:
+				ldortc1	{ PMIC_PDATA_INIT(15,
+					"nxe2000_rtc1",
+					1700000, 3500000,
+					1800000, 1, 1, 0xF)
+					regulator-always-on;
+					regulator-boot-on;};
+			VCC_RTC1:
+				ldortc2	{ PMIC_PDATA_INIT(16,
+					"nxe2000_rtc2",
+					1000000, 3500000,
+					1000000, 1, 1, 0xF)
+					regulator-always-on;
+					regulator-boot-on;};
+		}; /* regulators */
+	}; /* nxe2000@32 */
+}; /* i2c_gpio7 */

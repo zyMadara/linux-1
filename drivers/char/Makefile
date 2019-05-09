@@ -60,5 +60,6 @@ js-rtc-y = rtc.o
 
 obj-$(CONFIG_TILE_SROM)		+= tile-srom.o
 obj-$(CONFIG_XILLYBUS)		+= xillybus/
+obj-$(CONFIG_OPTION_FPART)		+= fpart.o
 
 obj-$(CONFIG_MATRIX_GPIO_INT)	+= matrix_gpio_int.o

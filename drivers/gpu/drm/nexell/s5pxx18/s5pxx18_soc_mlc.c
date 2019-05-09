@@ -470,8 +470,17 @@ void nx_mlc_set_transparency(u32 module_index, u32 layer, int benb, u32 color)
 		regvalue = pregister->mlcrgblayer[layer].mlctpcolor;
 		regvalue &= ~tpcolor_mask;
 		regvalue |= (color & tpcolor_mask);
-
 		writel(regvalue, &pregister->mlcrgblayer[layer].mlctpcolor);
+	} else if (layer == 3) {
+		regvalue = pregister->mlcvideolayer.mlccontrol;
+		regvalue &= ~(tpenb_mask | dirtyflag_mask);
+		regvalue |= (benb << tpenb_pos);
+
+		writel(regvalue, &pregister->mlcvideolayer.mlccontrol);
+		regvalue = pregister->mlcvideolayer.mlctpcolor;
+		regvalue &= ~tpcolor_mask;
+		regvalue |= (color & tpcolor_mask);
+		writel(regvalue, &pregister->mlcvideolayer.mlctpcolor);
 	}
 }
 
@@ -514,7 +523,7 @@ u32 nx_mlc_get_extended_color(u32 module_index, u32 color,
 	u32 bp[3] = {
 		0,
 	};
-	u32 blank = 0;
+	int blank = 0;
 	u32 fill = 0;
 	u32 i = 0;
 
@@ -1863,4 +1872,18 @@ void nx_mlc_get_video_position(u32 module_index, int *left, int *top,
 
 	if (bottom)
 		*(int *)bottom = ((tb >> 0) & 0xffful);
+}
+
+void nx_mlc_set_top_control_parameter(u32 module_index, int field_enable,
+				      int mlc_enable, u8 priority, int layer)
+{
+	register u32 mlc_top_control_reg;
+	register struct nx_mlc_register_set *pregister;
+
+	pregister = __g_module_variables[module_index].pregister;
+
+	mlc_top_control_reg = readl(&pregister->mlccontrolt) & 0xfffffcfc;
+	mlc_top_control_reg |= (priority << 8) | (mlc_enable << 1) |
+		(field_enable << 0);
+	writel(mlc_top_control_reg, &pregister->mlccontrolt);
 }

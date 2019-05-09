@@ -32,6 +32,7 @@
 
 #include "nx_drm_drv.h"
 #include "nx_drm_fb.h"
+#include <linux/switch.h>
 
 #if defined(CONFIG_DRM_PANEL_FRIENDLYELEC)
 extern void panel_init_display_mode(struct drm_display_mode *dmode);
@@ -44,6 +45,7 @@ struct hdmi_resource {
 	bool dvi_mode;
 	int hpd_gpio;
 	int hpd_irq;
+	struct switch_dev swdev;
 };
 
 struct hdmi_context {
@@ -57,6 +59,7 @@ struct hdmi_context {
 	int crtc_pipe;
 	unsigned int possible_crtcs_mask;
 	bool skip_boot_connect;
+	u32 prefered_mode;
 #if defined(CONFIG_DRM_PANEL_FRIENDLYELEC)
 	int force;
 #endif
@@ -136,9 +139,6 @@ static int panel_hdmi_preferred_modes(struct device *dev,
 
 		drm_display_mode_from_videomode(vm, mode);
 		mode->vrefresh = display->vrefresh;
-#if defined(CONFIG_DRM_PANEL_FRIENDLYELEC)
-		panel_init_display_mode(mode);
-#endif
 
 		err = hdmi_ops->get_mode(display, mode);
 		if (err)
@@ -151,6 +151,9 @@ static int panel_hdmi_preferred_modes(struct device *dev,
 		connector->display_info.height_mm = mode->height_mm;
 
 		mode->type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
+#if defined(CONFIG_DRM_PANEL_FRIENDLYELEC)
+		panel_init_display_mode(mode);
+#endif
 
 		drm_mode_set_name(mode);
 		drm_mode_probed_add(connector, mode);
@@ -184,17 +187,19 @@ static int panel_hdmi_ops_get_modes(struct device *dev,
 	if (!hdmi->ddc_adpt)
 		return -ENODEV;
 
-	edid = drm_get_edid(connector, hdmi->ddc_adpt);
-	if (edid) {
-		hdmi->dvi_mode = !drm_detect_hdmi_monitor(edid);
-		DRM_DEBUG_KMS("%s : width[%d] x height[%d]\n",
-			(hdmi->dvi_mode ? "dvi monitor" : "hdmi monitor"),
-			edid->width_cm, edid->height_cm);
+	if (!ctx->prefered_mode) {
+		edid = drm_get_edid(connector, hdmi->ddc_adpt);
+		if (edid) {
+			hdmi->dvi_mode = !drm_detect_hdmi_monitor(edid);
+			DRM_DEBUG_KMS("%s : width[%d] x height[%d]\n",
+				(hdmi->dvi_mode ? "dvi monitor" : "hdmi monitor"),
+				edid->width_cm, edid->height_cm);
 
-		drm_mode_connector_update_edid_property(connector, edid);
-		num_modes = drm_add_edid_modes(connector, edid);
-		panel_hdmi_dump_edid_modes(connector, num_modes, false);
-		kfree(edid);
+			drm_mode_connector_update_edid_property(connector, edid);
+			num_modes = drm_add_edid_modes(connector, edid);
+			panel_hdmi_dump_edid_modes(connector, num_modes, false);
+			kfree(edid);
+		}
 	}
 
 	return panel_hdmi_preferred_modes(dev, connector, num_modes);
@@ -238,6 +243,7 @@ static void panel_hdmi_on(struct hdmi_context *ctx)
 	struct nx_drm_connector *nx_connector = ctx->connector;
 	struct nx_drm_display *display = ctx_to_display(ctx);
 	struct nx_drm_display_ops *ops = display->ops;
+	struct hdmi_resource *hdmi = &ctx->hdmi;
 
 	DRM_DEBUG_KMS("enter\n");
 
@@ -246,6 +252,7 @@ static void panel_hdmi_on(struct hdmi_context *ctx)
 
 	if (ops->enable)
 		ops->enable(display);
+	switch_set_state(&hdmi->swdev, 1);
 }
 
 static void panel_hdmi_off(struct hdmi_context *ctx)
@@ -253,6 +260,7 @@ static void panel_hdmi_off(struct hdmi_context *ctx)
 	struct nx_drm_connector *nx_connector = ctx->connector;
 	struct nx_drm_display *display = ctx_to_display(ctx);
 	struct nx_drm_display_ops *ops = display->ops;
+	struct hdmi_resource *hdmi = &ctx->hdmi;
 
 	DRM_DEBUG_KMS("enter\n");
 
@@ -261,6 +269,7 @@ static void panel_hdmi_off(struct hdmi_context *ctx)
 
 	if (ops->disable)
 		ops->disable(display);
+	switch_set_state(&hdmi->swdev, 0);
 }
 
 static void panel_hdmi_ops_enable(struct device *dev)
@@ -372,6 +381,7 @@ static const struct component_ops panel_comp_ops = {
 	.unbind = panel_hdmi_unbind,
 };
 
+#ifdef CONFIG_DRM_FBDEV_EMULATION
 static bool __drm_fb_bound(struct drm_fb_helper *fb_helper)
 {
 	struct drm_device *dev = fb_helper->dev;
@@ -456,6 +466,7 @@ static int panel_hdmi_wait_fb_bound(struct hdmi_context *ctx)
 
 	return 0;
 }
+#endif
 
 static void panel_hdmi_hpd_work(struct work_struct *work)
 {
@@ -548,6 +559,7 @@ static int panel_hdmi_parse_dt_hdmi(struct platform_device *pdev,
 		property_read(np, "height", vm->vactive);
 		property_read(np, "flags", vm->flags);
 		property_read(np, "refresh", display->vrefresh);
+		property_read(np, "prefered", ctx->prefered_mode);
 	}
 
 	/* EDID ddc */
@@ -718,6 +730,13 @@ static int panel_hdmi_probe(struct platform_device *pdev)
 	hdmi->hpd_gpio = -1;
 	hdmi->hpd_irq = INVALID_IRQ;
 
+	hdmi->swdev.name = "hdmi";
+	err = switch_dev_register(&hdmi->swdev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to register hdmi switch\n");
+		return -ENOMEM;
+	}
+
 	err = panel_hdmi_get_display(pdev, ctx);
 	if (err < 0)
 		goto err_probe;
@@ -742,6 +761,7 @@ static int panel_hdmi_probe(struct platform_device *pdev)
 
 err_probe:
 	DRM_ERROR("Failed %s probe !!!\n", dev_name(dev));
+	switch_dev_unregister(&hdmi->swdev);
 	devm_kfree(dev, ctx);
 	return err;
 }
@@ -759,6 +779,8 @@ static int panel_hdmi_remove(struct platform_device *pdev)
 	component_del(dev, &panel_comp_ops);
 
 	hdmi = &ctx->hdmi;
+	switch_dev_unregister(&hdmi->swdev);
+
 	if (hdmi->hpd_irq != INVALID_IRQ)
 		devm_free_irq(dev, hdmi->hpd_irq, ctx);
 

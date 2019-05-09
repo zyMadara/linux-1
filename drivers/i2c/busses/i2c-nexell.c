@@ -573,6 +573,10 @@ static int nx_i2c_algo_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 
 	dev_dbg(par->dev, "\n %s(msg num:%d)\n", __func__, num);
 
+#if defined(CONFIG_ARM_S5Pxx18_DEVFREQ)
+	nx_bus_qos_lock();
+#endif
+
 	for ( ; j > 0; j--, tmsg++) {
 		par->no_stop = (1 == j ? 0 : 1);
 		len = tmsg->len;
@@ -592,6 +596,10 @@ static int nx_i2c_algo_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 		if (ret != len)
 			break;
 	}
+
+#if defined(CONFIG_ARM_S5Pxx18_DEVFREQ)
+	nx_bus_qos_unlock();
+#endif
 
 	par->running = 0;
 
@@ -756,9 +764,7 @@ static int nx_i2c_freq_transition(struct notifier_block *nb, unsigned long val,
 		 freq, i2c->clk_in);
 
 	if (freq != i2c->clk_in) {
-		i2c_lock_adapter(&i2c->adapter);
 		nx_i2c_set_clk_param(i2c, freq);
-		i2c_unlock_adapter(&i2c->adapter);
 	}
 
 	return 0;
@@ -774,7 +780,6 @@ static inline int nx_i2c_register_freq_notifier(struct nx_i2c_param *i2c)
 static inline void nx_i2c_unregister_freq_notifier(struct nx_i2c_param *i2c)
 {
 	nx_bus_remove_notifier(&i2c->freq_transition);
-	pm_qos_remove_notifier(PM_QOS_BUS_THROUGHPUT, &i2c->freq_transition);
 }
 #else
 static inline int nx_i2c_register_freq_notifier(struct nx_i2c_param *i2c)
@@ -856,9 +861,12 @@ static int nx_i2c_remove(struct platform_device *pdev)
 #ifdef CONFIG_RESET_CONTROLLER
 	struct reset_control *rst;
 
-	rst = devm_reset_control_get(&pdev->dev, "i2c-reset");
+	rst = reset_control_get(&pdev->dev, "i2c-reset");
 	reset_control_assert(rst);
+	reset_control_put(rst);
 #endif
+	nx_i2c_unregister_freq_notifier(par);
+
 	clk_disable_unprepare(par->clk);
 
 	i2c_del_adapter(&par->adapter);
@@ -875,8 +883,9 @@ static int nx_i2c_suspend_noirq(struct device *dev)
 #ifdef CONFIG_RESET_CONTROLLER
 	struct reset_control *rst;
 
-	rst = devm_reset_control_get(&pdev->dev, "i2c-reset");
+	rst = reset_control_get(&pdev->dev, "i2c-reset");
 	reset_control_assert(rst);
+	reset_control_put(rst);
 #endif
 	clk_disable_unprepare(par->clk);
 	dev_dbg(&pdev->dev, "%s\n", __func__);
@@ -895,11 +904,12 @@ static int nx_i2c_resume_noirq(struct device *dev)
 	pinctrl_select_state(par->pctrl, par->pins_sda_dft);
 	pinctrl_select_state(par->pctrl, par->pins_scl_dft);
 #ifdef CONFIG_RESET_CONTROLLER
-	rst = devm_reset_control_get(&pdev->dev, "i2c-reset");
+	rst = reset_control_get(&pdev->dev, "i2c-reset");
 
 	if (!IS_ERR(rst)) {
 		if (reset_control_status(rst))
 			reset_control_reset(rst);
+		reset_control_put(rst);
 	}
 #endif
 	clk_prepare_enable(par->clk);

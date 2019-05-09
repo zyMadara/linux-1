@@ -122,7 +122,7 @@ struct gadget_strings {
 	char *manufacturer;
 	char *product;
 	char *serialnumber;
-#if defined(CONFIG_USB_F_CARPLAY) || defined(CONFIG_USB_CONFIGFS_CARPLAY)
+#if defined(CONFIG_USB_F_IAP) || defined(CONFIG_USB_CONFIGFS_F_IAP)
 	char *interface;
 	char *interface2;
 	char *interface3;
@@ -738,7 +738,7 @@ static struct config_item_type config_desc_type = {
 GS_STRINGS_RW(gadget_strings, manufacturer);
 GS_STRINGS_RW(gadget_strings, product);
 GS_STRINGS_RW(gadget_strings, serialnumber);
-#if defined(CONFIG_USB_F_CARPLAY) || defined(CONFIG_USB_CONFIGFS_CARPLAY)
+#if defined(CONFIG_USB_F_IAP) || defined(CONFIG_USB_CONFIGFS_F_IAP)
 GS_STRINGS_RW(gadget_strings, interface);
 GS_STRINGS_RW(gadget_strings, interface2);
 GS_STRINGS_RW(gadget_strings, interface3);
@@ -749,7 +749,7 @@ static struct configfs_attribute *gadget_strings_langid_attrs[] = {
 	&gadget_strings_attr_manufacturer,
 	&gadget_strings_attr_product,
 	&gadget_strings_attr_serialnumber,
-#if defined(CONFIG_USB_F_CARPLAY) || defined(CONFIG_USB_CONFIGFS_CARPLAY)
+#if defined(CONFIG_USB_F_IAP) || defined(CONFIG_USB_CONFIGFS_F_IAP)
 	&gadget_strings_attr_interface,
 	&gadget_strings_attr_interface2,
 	&gadget_strings_attr_interface3,
@@ -765,7 +765,7 @@ static void gadget_strings_attr_release(struct config_item *item)
 	kfree(gs->manufacturer);
 	kfree(gs->product);
 	kfree(gs->serialnumber);
-#if defined(CONFIG_USB_F_CARPLAY) || defined(CONFIG_USB_CONFIGFS_CARPLAY)
+#if defined(CONFIG_USB_F_IAP) || defined(CONFIG_USB_CONFIGFS_F_IAP)
 	kfree(gs->interface);
 	kfree(gs->interface2);
 	kfree(gs->interface3);
@@ -1273,8 +1273,9 @@ static void purge_configs_funcs(struct gadget_info *gi)
 
 			list_move_tail(&f->list, &cfg->func_list);
 			if (f->unbind) {
-				dev_err(&gi->cdev.gadget->dev, "unbind function"
-						" '%s'/%p\n", f->name, f);
+				dev_dbg(&gi->cdev.gadget->dev,
+				         "unbind function '%s'/%p\n",
+				         f->name, f);
 				f->unbind(c, f);
 			}
 		}
@@ -1339,7 +1340,7 @@ static int configfs_composite_bind(struct usb_gadget *gadget,
 				gs->manufacturer;
 			gs->strings[USB_GADGET_PRODUCT_IDX].s = gs->product;
 			gs->strings[USB_GADGET_SERIAL_IDX].s = gs->serialnumber;
-#if defined(CONFIG_USB_F_CARPLAY) || defined(CONFIG_USB_CONFIGFS_CARPLAY)
+#if defined(CONFIG_USB_F_IAP) || defined(CONFIG_USB_CONFIGFS_F_IAP)
 			gs->strings[USB_GADGET_INTERFACE_IDX].s = gs->interface;
 			gs->strings[USB_GADGET_INTERFACE_IDX2].s =
 				gs->interface2;
@@ -1555,6 +1556,18 @@ static void android_disconnect(struct usb_gadget *gadget)
 {
 	struct usb_composite_dev        *cdev = get_gadget_data(gadget);
 	struct gadget_info *gi = container_of(cdev, struct gadget_info, cdev);
+
+	/* FIXME: There's a race between usb_gadget_udc_stop() which is likely
+	 * to set the gadget driver to NULL in the udc driver and this drivers
+	 * gadget disconnect fn which likely checks for the gadget driver to
+	 * be a null ptr. It happens that unbind (doing set_gadget_data(NULL))
+	 * is called before the gadget driver is set to NULL and the udc driver
+	 * calls disconnect fn which results in cdev being a null ptr.
+	 */
+	if (cdev == NULL) {
+		WARN(1, "%s: gadget driver already disconnected\n", __func__);
+		return;
+	}
 
 	/* accessory HID support can be active while the
 		accessory function is not actually enabled,

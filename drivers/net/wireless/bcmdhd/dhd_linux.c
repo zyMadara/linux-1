@@ -4421,7 +4421,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			}
 
 			if (numpkt != 1) {
-				DHD_ERROR(("%s: Got BRCM event packet in a chained packet.\n",
+				DHD_TRACE(("%s: Got BRCM event packet in a chained packet.\n",
 				__FUNCTION__));
 			}
 #ifdef DHD_DONOT_FORWARD_BCMEVENT_AS_NETWORK_PKT
@@ -5699,7 +5699,7 @@ dhd_stop(struct net_device *net)
 #endif /* BCMPCIE */
 
 	if (dhd->pub.up == 0) {
-		goto exit;
+                goto exit;
 	}
 
 	dhd_if_flush_sta(DHD_DEV_IFP(net));
@@ -7003,6 +7003,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	if (dhd_watchdog_prio >= 0) {
 		/* Initialize watchdog thread */
 		PROC_START(dhd_watchdog_thread, dhd, &dhd->thr_wdt_ctl, 0, "dhd_watchdog_thread");
+                if (dhd->thr_wdt_ctl.thr_pid < 0) {
+                        goto fail;
+                }
 
 	} else {
 		dhd->thr_wdt_ctl.thr_pid = -1;
@@ -7016,6 +7019,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize DPC thread */
 		PROC_START(dhd_dpc_thread, dhd, &dhd->thr_dpc_ctl, 0, "dhd_dpc");
+                if (dhd->thr_dpc_ctl.thr_pid < 0) {
+                        goto fail;
+                }
 	} else {
 #if defined(CUSTOMER_HW4) && defined(ARGOS_CPU_SCHEDULER) && \
 	defined(ARGOS_DPC_TASKLET_CTL)
@@ -7048,6 +7054,9 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 		bzero(&dhd->pub.skbbuf[0], sizeof(void *) * MAXSKBPEND);
 		/* Initialize RXF thread */
 		PROC_START(dhd_rxf_thread, dhd, &dhd->thr_rxf_ctl, 0, "dhd_rxf");
+                if (dhd->thr_rxf_ctl.thr_pid < 0) {
+                        goto fail;
+                }
 	}
 
 	dhd_state |= DHD_ATTACH_STATE_THREADS_CREATED;
@@ -7790,7 +7799,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #ifdef DHD_ENABLE_LPC
 	uint32 lpc = 1;
 #endif /* DHD_ENABLE_LPC */
-	uint power_mode = PM_FAST;
+	uint power_mode = PM_OFF;
 #if defined(BCMSDIO)
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = CUSTOM_GLOM_SETTING;
@@ -7798,7 +7807,11 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 #if defined(VSDB) || defined(ROAM_ENABLE)
 	uint bcn_timeout = CUSTOM_BCN_TIMEOUT;
 #else
+#if 1 //SKJ 20180501 : wifi control
+	uint bcn_timeout = 8;
+#else
 	uint bcn_timeout = 4;
+#endif
 #endif /* CUSTOMER_HW4 && (VSDB || ROAM_ENABLE) */
 #if defined(CUSTOMER_HW4) && defined(ENABLE_BCN_LI_BCN_WAKEUP)
 	uint32 bcn_li_bcn = 1;
@@ -9372,7 +9385,9 @@ void dhd_detach(dhd_pub_t *dhdp)
 #endif /* PROP_TXSTATUS */
 
 #ifdef WL_CFG80211
-	wl_cfg80211_down(NULL);
+        if (dhd->dhd_state & DHD_ATTACH_STATE_CFG80211) {
+                wl_cfg80211_down(NULL);
+        }
 #endif /* WL_CFG80211 */
 
 	if (dhd->dhd_state & DHD_ATTACH_STATE_PROT_ATTACH) {

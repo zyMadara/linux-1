@@ -109,19 +109,19 @@
 				use_isr;
 
 				ch12 {
-					slave_wait_flush_dma;
+//					slave_wait_flush_dma;
 				};
 
 				ch13 {
-					slave_wait_flush_dma;
+//					slave_wait_flush_dma;
 				};
 
 				ch14 {
-					slave_wait_flush_dma;
+//					slave_wait_flush_dma;
 				};
 
 				ch15 {
-					slave_wait_flush_dma;
+//					slave_wait_flush_dma;
 				};
 			};
 
@@ -129,11 +129,11 @@
 				use_isr;
 
 				ch0 {
-					slave_wait_flush_dma;
+//					slave_wait_flush_dma;
 				};
 
 				ch1 {
-					slave_wait_flush_dma;
+//					slave_wait_flush_dma;
 				};
 			};
 		};
@@ -173,6 +173,7 @@
 
 		dwc2otg@c0040000 {
 			gpios = <&alive_0 5 0>;
+			nouse_idcon = <1>;
 			status = "okay";
 		};
 
@@ -256,6 +257,11 @@
 				    <&gpio_c 4 GPIO_ACTIVE_HIGH>;
 			};
 		};
+
+		scaler@c0066000 {
+			status = "okay";
+		};
+
 	};	/*** soc ***/
 
 	vcc_spk: regulator-fix@0 {
@@ -406,6 +412,7 @@
 		};
 
 		simple-audio-card,dai-link@2 {
+		    format = "spdif";
 		    cpu {
 			sound-dai = <&spdif_tx 0>;
 		    };
@@ -560,7 +567,7 @@
 
 #include "tw9900_rearcam_regset.dtsi"
 &rearcam {
-	pinctrl-names = "default";
+	pinctrl-names = "rear_cam_clk";
 	pinctrl-0 = <&vid2_data_clk>;
 	rotation = <0>;
 	rear_cam_dev = <&clipper_1>;
@@ -569,6 +576,7 @@
 	dp_drm_dev = <&dp_drm_lvds>;
 	width = <704>;
 	height = <480>;
+	skip_frame = <0>;
 	status = "okay";
 
 	gpio {
@@ -627,8 +635,8 @@
 	};
 
 	dp_control {
-		clk_src_lv0 = <0>;
-		clk_div_lv0 = <16>;
+		clk_src_lv0 = <3>;
+		clk_div_lv0 = <12>;
 		clk_src_lv1 = <7>;
 		clk_div_lv1 = <1>;
 		out_format = <2>;
@@ -676,9 +684,9 @@
 	card-detect-delay = <200>;
 	disable-wp;
 	nexell,drive_dly = <0x0>;
-	nexell,drive_shift = <0x02>;
+	nexell,drive_shift = <0x03>;
 	nexell,sample_dly = <0x00>;
-	nexell,sample_shift = <0x01>;
+	nexell,sample_shift = <0x02>;
 	status = "okay";
 };
 

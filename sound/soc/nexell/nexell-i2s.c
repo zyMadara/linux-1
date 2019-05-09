@@ -275,18 +275,12 @@ static void i2s_reset(struct device *dev)
 #ifdef CONFIG_RESET_CONTROLLER
 	struct reset_control *rst;
 
-	rst = devm_reset_control_get(dev, "i2s-apb-reset");
+	rst = reset_control_get(dev, "i2s-reset");
 
 	if (!IS_ERR(rst)) {
 		if (reset_control_status(rst))
 			reset_control_reset(rst);
-	}
-
-	rst = devm_reset_control_get(dev, "i2s-reset");
-
-	if (!IS_ERR(rst)) {
-		if (reset_control_status(rst))
-			reset_control_reset(rst);
+		reset_control_put(rst);
 	}
 #endif
 }
@@ -548,7 +542,7 @@ static int nx_i2s_set_plat_param(struct nx_i2s_snd_param *par, void *data)
 	int i = 0, ret = 0;
 	unsigned int id = 0;
 	char clkname[MAX_CLK_NAME_LENGTH];
-	int dfs_pllno;
+	int dfs_pllno = 0;
 	struct resource *res;
 
 	id = of_alias_get_id(pdev->dev.of_node, "i2s");
@@ -985,7 +979,7 @@ static int nx_i2s_probe(struct platform_device *pdev)
 	int ret = 0;
 
 	/*  allocate i2c_port data */
-	par = kzalloc(sizeof(struct nx_i2s_snd_param), GFP_KERNEL);
+	par = devm_kzalloc(&pdev->dev, sizeof(struct nx_i2s_snd_param), GFP_KERNEL);
 	if (!par)
 		return -ENOMEM;
 
@@ -1016,14 +1010,12 @@ static int nx_i2s_probe(struct platform_device *pdev)
 	return ret;
 
 err_out:
-	kfree(NULL);
 	return ret;
 }
 
 static int nx_i2s_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_component(&pdev->dev);
-	kfree(NULL);
 	return 0;
 }
 

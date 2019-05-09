@@ -75,9 +75,9 @@
 
 			vip0:vip@c00c1000  { src-force = <4>; };
 			/*
-			vip0:vip@c00c1000 { clock-frequency = <300000000>;};
+			vip0:vip@c00c1000  { clock-frequency = <300000000>; };
 			*/
-			
+
 			i2c0:i2c@c00ae000  { clock-frequency = <200000000>; };
 			i2c1:i2c@c00af000  { clock-frequency = <200000000>; };
 			i2c2:i2c@c00b0000  { clock-frequency = <200000000>; };

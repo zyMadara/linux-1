@@ -83,10 +83,12 @@ static int exynos_ehci_get_phy(struct device *dev,
 		if (IS_ERR(phy)) {
 			ret = PTR_ERR(phy);
 			if (ret == -EPROBE_DEFER) {
+				of_node_put(child);
 				return ret;
 			} else if (ret != -ENOSYS && ret != -ENODEV) {
 				dev_err(dev,
 					"Error retrieving usb2 phy: %d\n", ret);
+				of_node_put(child);
 				return ret;
 			}
 		}
@@ -107,10 +109,11 @@ static int exynos_ehci_phy_enable(struct device *dev)
 #ifdef CONFIG_RESET_CONTROLLER
 		struct reset_control *rst;
 
-		rst = devm_reset_control_get(dev, "usbhost-reset");
+		rst = reset_control_get(dev, "usbhost-reset");
 		if (!IS_ERR(rst)) {
 			if (reset_control_status(rst))
 				reset_control_reset(rst);
+			reset_control_put(rst);
 		}
 #endif
 	}

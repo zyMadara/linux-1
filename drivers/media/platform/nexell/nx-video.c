@@ -847,11 +847,6 @@ static int nx_video_set_format(struct file *file, void *fh,
 		}
 	}
 
-	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		set_plane_size_mmap(frame, &f->fmt.pix.sizeimage);
-		f->fmt.pix.bytesperline = frame->stride[0];
-	}
-
 	return 0;
 }
 
@@ -1127,12 +1122,12 @@ static int nx_video_enum_framesizes(struct file *file, void *fh,
 		return -ENODEV;
 	}
 	frame_size.index = p->index;
-        ret = v4l2_subdev_call(sd, pad, enum_frame_size, NULL, &frame_size);
-        if (!ret) {
-                p->stepwise.max_width = frame_size.max_width;
-                p->stepwise.max_height = frame_size.max_height;
+	ret = v4l2_subdev_call(sd, pad, enum_frame_size, NULL, &frame_size);
+	if (!ret) {
+		p->stepwise.max_width = frame_size.max_width;
+		p->stepwise.max_height = frame_size.max_height;
 		pr_debug("width:%d, height:%d\n", p->stepwise.max_width,
-			 p->stepwise.max_height);
+				p->stepwise.max_height);
 	}
 
 	return ret;
@@ -1159,16 +1154,16 @@ static int nx_video_enum_frameintervals(struct file *file, void *fh,
 	}
 
 	frame.index = p->index;
-        ret = v4l2_subdev_call(sd, pad, enum_frame_interval, NULL, &frame);
-        if (!ret) {
-		p->width = frame.width;
-		p->height = frame.height;
+	frame.width = p->width;
+	frame.height = p->height;
+	ret = v4l2_subdev_call(sd, pad, enum_frame_interval, NULL, &frame);
+	if (!ret) {
 		p->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 		p->discrete.numerator = frame.interval.numerator;
 		p->discrete.denominator = frame.interval.denominator;
-		pr_debug("index:%d, width:%d, height:%d, type:%d, numerator:%d, denominator:%d\n",
-			p->index, p->width, p->height, p->type,
-			p->discrete.numerator, p->discrete.denominator);
+		pr_debug("width:%d, height:%d, interval:%d\n",
+			p->width, p->height,
+			p->discrete.denominator);
 	}
 
         return ret;
@@ -1534,6 +1529,33 @@ bool nx_video_done_buffer(struct nx_video_buffer_object *obj)
 	return true;
 }
 EXPORT_SYMBOL_GPL(nx_video_done_buffer);
+
+void nx_video_clear_buffer_queued(struct nx_video_buffer_object *obj)
+{
+	struct nx_video_buffer *buf = NULL;
+
+	if (nx_video_get_buffer_count(obj)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&obj->slock, flags);
+		while (!list_empty(&obj->buffer_list)) {
+			buf = list_entry(obj->buffer_list.next,
+					 struct nx_video_buffer, list);
+			if (buf) {
+				struct vb2_buffer *vb = buf->priv;
+
+				vb2_buffer_done(vb, VB2_BUF_STATE_QUEUED);
+				list_del_init(&buf->list);
+			} else
+				break;
+		}
+		INIT_LIST_HEAD(&obj->buffer_list);
+		spin_unlock_irqrestore(&obj->slock, flags);
+	}
+
+	atomic_set(&obj->buffer_count, 0);
+}
+EXPORT_SYMBOL_GPL(nx_video_clear_buffer_queued);
 
 void nx_video_clear_buffer(struct nx_video_buffer_object *obj)
 {

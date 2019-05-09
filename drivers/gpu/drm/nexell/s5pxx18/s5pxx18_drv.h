@@ -78,6 +78,7 @@ struct plane_property {
 			struct drm_property *alphablend;
 		} rgb;
 		struct {
+			struct drm_property *transcolor;
 			struct drm_property *colorkey;
 		} yuv;
 	} color;
@@ -123,6 +124,7 @@ struct nx_plane_layer {
 			double saturation; /* def = 0, -100 <= Range <= 100 */
 			int satura;
 			int gamma;
+			u32 yuv_transcolor;
 		};
 	} color;
 
@@ -314,6 +316,7 @@ struct nx_lvds_dev {
 	int pol_inv_de;		/* de polarity invert for VESA, JEIDA */
 	int pol_inv_ck;		/* input clock(pixel clock) polarity invert */
 	int voltage_level;
+	int fc_code;
 	u32 reg_ctrl4;
 };
 
@@ -327,6 +330,7 @@ struct nx_hdmi_dev {
 
 struct nx_tvout_dev {
 	struct nx_control_dev control;
+	bool is_first;
 };
 
 /*

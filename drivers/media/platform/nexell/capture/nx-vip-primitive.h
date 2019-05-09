@@ -104,7 +104,9 @@ struct nx_vip_register_set {
 	u32 vip_fifoctrl;
 	u32 vip_hcount;
 	u32 vip_vcount;
-	u8  __reserved00[0x200-0x2c];
+	u32 __reserved;
+	u32 vip_infifoclr;
+	u8 __reserved00[0x200 - 0x34];
 	u32 vip_cdenb;
 	u32 vip_odint;
 	u32 vip_imgwidth;
@@ -262,10 +264,12 @@ void nx_vip_set_data_mode(u32 module_index, u32 data_order,
 void nx_vip_get_data_mode(u32 module_index, u32 *data_order,
 			  u32 *p_data_width);
 void nx_vip_set_sync(u32 module_index, int b_ext_sync,
-		     u32 source_bits, u32 avw, u32 avh, u32 hsw,
-		     u32 hfp, u32 hbp, u32 vsw, u32 vfp, u32 vbp);
+		     u32 source_bits, u32 avw, u32 avh,
+		     u32 pcs, u32 hp, u32 vp, u32 hsw, u32 hfp, u32 hbp,
+		     u32 vsw, u32 vfp, u32 vbp);
 void nx_vip_set_hvsync(u32 module_index, int b_ext_sync, u32 avw, u32 avh,
-		       u32 hsw, u32 hfp, u32 hbp, u32 vsw, u32 vfp, u32 vbp);
+		       u32 pcs, u32 hp, u32 vp, u32 hsw, u32 hfp, u32 hbp,
+		       u32 vsw, u32 vfp, u32 vbp);
 void nx_vip_get_hvsync(u32 module_index, int *p_ext_sync, u32 *pavw, u32 *pavh,
 		       u32 *phbegin, u32 *phend, u32 *pvbegin, u32 *pvend);
 void nx_vip_set_hvsync_for_mipi(u32 module_index, u32 avw, u32 avh, u32 hsw,
@@ -312,6 +316,7 @@ void nx_vip_set_decimator_addr(u32 module_index, u32 format,
 void nx_vip_get_deci_source(u32 module_index, u32 *p_src_width,
 			    u32 *p_src_height);
 int nx_vip_smoke_test(u32 module_index);
+void nx_vip_clear_input_fifo(u32 module_index);
 void nx_vip_dump_register(u32 module_index);
 
 #endif

@@ -327,6 +327,9 @@ static int crtc_ops_begin(struct drm_crtc *crtc)
 	crtc_w = crtc->state->mode.hdisplay;
 	crtc_h = crtc->state->mode.vdisplay;
 
+	if (crtc->state->mode.flags & DRM_MODE_FLAG_INTERLACE)
+		top->interlace = 1;
+
 	DRM_DEBUG_KMS("crtc.%d: [%d x %d] -> [%d,%d]\n",
 		top->module, fb->width, fb->height, crtc_w, crtc_h);
 	DRM_DEBUG_KMS("%s pixel:%d, back:0x%x, colorkey:0x%x\n",
@@ -366,7 +369,8 @@ static void crtc_ops_enable(struct drm_crtc *crtc)
 	struct nx_drm_crtc *nx_crtc = to_nx_crtc(crtc);
 	struct nx_top_plane *top = nx_crtc->context;
 
-	DRM_DEBUG_KMS("crtc.%d\n", top->module);
+	DRM_DEBUG_KMS("%s: crtc.%d, top->width : %d, top->height : %d\n",
+		__func__, top->module, top->width, top->height);
 
 	if (nx_crtc->suspended)
 		crtc_mlc_resume(crtc);
@@ -911,6 +915,11 @@ static int plane_set_property(struct drm_plane *plane,
 		plane_set_color(plane, NX_COLOR_COLORKEY, val);
 	}
 
+	if (property == color->yuv.transcolor) {
+		layer->color.yuv_transcolor = val;
+		plane_set_color(plane, NX_COLOR_TRANS, val);
+	}
+
 	if (property == color->rgb.transcolor) {
 		layer->color.transcolor = val;
 		plane_set_color(plane, NX_COLOR_TRANS, val);
@@ -943,6 +952,9 @@ static int plane_get_property(struct drm_plane *plane,
 
 	if (property == color->yuv.colorkey)
 		*val = layer->color.colorkey;
+
+	if (property == color->yuv.transcolor)
+		*val = layer->color.yuv_transcolor;
 
 	if (property == color->rgb.transcolor)
 		*val = layer->color.transcolor;
@@ -978,6 +990,11 @@ static void plane_ops_create_proeprties(struct drm_device *drm,
 		drm_property_create_range(drm, 0, "colorkey", 0, 0xffffffff);
 		drm_object_attach_property(&plane->base,
 			color->yuv.colorkey, layer->color.colorkey);
+
+		color->yuv.transcolor =
+		drm_property_create_range(drm, 0, "transcolor", 0, 0xffffffff);
+		drm_object_attach_property(&plane->base,
+			color->yuv.transcolor, layer->color.yuv_transcolor);
 	} else {
 		/* RGB color */
 		color->rgb.transcolor =
@@ -1023,6 +1040,7 @@ static int plane_create(struct drm_device *drm,
 	struct nx_top_plane *top;
 	struct nx_plane_layer *layer;
 	struct plane_format_type *format;
+	int ret = 0;
 
 	layer = kzalloc(sizeof(*layer), GFP_KERNEL);
 	if (!layer)
@@ -1037,8 +1055,11 @@ static int plane_create(struct drm_device *drm,
 				NX_PLANE_TYPE_VIDEO : 0;
 	layer->color.alpha = layer->type & NX_PLANE_TYPE_VIDEO ? 15 : 0;
 
-	sprintf(layer->name, "%d-%s%d", top->module,
+	ret = snprintf(layer->name, 16, "%d-%s%d", top->module,
 		layer->type & NX_PLANE_TYPE_VIDEO ? "vid" : "rgb", plane_num);
+
+	if (ret < 0)
+		return -EINVAL;
 
 	list_add_tail(&layer->list, &top->plane_list);
 	format = &plane_formats[layer->type & NX_PLANE_TYPE_VIDEO ? 1 : 0];
@@ -1441,7 +1462,8 @@ struct nx_drm_display *nx_drm_display_get(struct device *dev,
 		control = nx_drm_display_hdmi_get(dev, node, display);
 		break;
 	#endif
-	#ifdef CONFIG_DRM_NX_TVOUT
+	#if defined(CONFIG_DRM_NX_TVOUT_S5P4418) || \
+		defined(CONFIG_DRM_NX_TVOUT_S5P6818)
 	case NX_PANEL_TYPE_TV:
 		control = nx_drm_display_tvout_get(dev, node, display);
 		break;
@@ -1529,7 +1551,7 @@ int nx_drm_display_setup(struct nx_drm_display *display,
 	sprintf(pll, "sys-pll%d", ctrl->clk_src_lv0);
 
 	clk = clk_get(NULL, pll);
-	if (clk) {
+	if (!IS_ERR(clk)) {
 		long rate, pixclock;
 
 		rate = clk_get_rate(clk);
@@ -1568,6 +1590,8 @@ void nx_display_mode_to_sync(struct drm_display_mode *mode,
 		vm.flags & DISPLAY_FLAGS_HSYNC_HIGH ? 1 : 0;
 
 	sync->v_active_len = vm.vactive;
+	if (sync->interlace)
+		sync->v_active_len /= 2;
 	sync->v_sync_width = vm.vsync_len;
 	sync->v_back_porch = vm.vback_porch;
 	sync->v_front_porch = vm.vfront_porch;

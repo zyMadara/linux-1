@@ -45,6 +45,8 @@ struct alc5623_priv {
 	unsigned int sysclk;
 	unsigned int add_ctrl;
 	unsigned int jack_det_ctrl;
+	unsigned int output_mixer_ctrl;
+	unsigned int alc56xx_id;
 };
 
 static struct reg_default init_list[] = {
@@ -73,20 +75,54 @@ static struct reg_default init_list[] = {
 };
 #define RT5623_INIT_REG_LEN ARRAY_SIZE(init_list)
 
+static struct reg_default init_list_21[] = {
+    {ALC5623_PWR_MANAG_ADD2,    0x2000},
+    {ALC5623_PWR_MANAG_ADD3,    0x8000},
+    {ALC5623_OUTPUT_MIXER_CTRL, 0x0740},
+    {ALC5623_ADC_REC_MIXER,     0x3f3f},
+    {ALC5623_STEREO_DAC_VOL,    0x0808},
+    {ALC5623_HP_OUT_VOL,        0x8888},
+    {ALC5623_SPK_OUT_VOL,       0x8080},
+    {ALC5623_DAI_CONTROL,       0x8000},
+    {ALC5623_STEREO_AD_DA_CLK_CTRL, 0x066d},
+    {ALC5623_ADD_CTRL_REG,      0x5f00},
+    {ALC5623_PWR_MANAG_ADD1,    0x8830},
+    {ALC5623_PWR_MANAG_ADD2,    0xa7f7},
+    {ALC5623_PWR_MANAG_ADD3,    0x960a},
+    {ALC5623_DAI_CONTROL,       0x8000},
+    {ALC5623_STEREO_DAC_VOL,    0x4808},
+    {ALC5623_OUTPUT_MIXER_CTRL,   0xAF00},
+    {ALC5623_SPK_OUT_VOL,       0x0000},
+    {ALC5623_HP_OUT_VOL,        0x0000},
+    {ALC5623_MIC_ROUTING_CTRL,  0xf0e0},
+    {ALC5623_MIC_CTRL,      0x0800},
+    {ALC5623_ADC_REC_MIXER,     0x3f3f},
+    {ALC5623_ADC_REC_GAIN,      0xf58b},
+};
+#define RT5621_INIT_REG_LEN ARRAY_SIZE(init_list_21)
+
 static inline int alc5623_reset(struct snd_soc_codec *codec)
 {
 	return snd_soc_write(codec, ALC5623_RESET, 0);
 }
 
-static int alc5623_reg_init(struct snd_soc_codec *codec)
+static void alc5623_reg_init(struct snd_soc_codec *codec)
 {
 	struct alc5623_priv *alc5623 = snd_soc_codec_get_drvdata(codec);
 	int i;
 
-	for (i = 0; i < RT5623_INIT_REG_LEN; i++)
-		regmap_write(alc5623->regmap,
-			      init_list[i].reg, init_list[i].def);
+	if(alc5623->id == 0x21)
+	{
+	    for (i = 0; i < RT5621_INIT_REG_LEN; i++)
+    	    regmap_write(alc5623->regmap,init_list_21[i].reg, init_list_21[i].def);
+	}
+	else
+	{
+		for (i = 0; i < RT5623_INIT_REG_LEN; i++)
+			regmap_write(alc5623->regmap,init_list[i].reg, init_list[i].def);
+	}
 }
+
 static int amp_mixer_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -808,7 +844,8 @@ static int alc5623_mute(struct snd_soc_dai *dai, int mute)
 	(ALC5623_PWR_ADD1_SHORT_CURR_DET_EN \
 	| ALC5623_PWR_ADD1_HP_OUT_AMP)
 
-static void enable_power_depop(struct snd_soc_codec *codec)
+static __attribute__((unused))
+void enable_power_depop(struct snd_soc_codec *codec)
 {
 	struct alc5623_priv *alc5623 = snd_soc_codec_get_drvdata(codec);
 
@@ -946,6 +983,10 @@ static int alc5623_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, ALC5623_JACK_DET_CTRL,
 				alc5623->jack_det_ctrl);
 	}
+    if (alc5623->output_mixer_ctrl) {
+        snd_soc_write(codec, ALC5623_OUTPUT_MIXER_CTRL,
+                alc5623->output_mixer_ctrl);
+    }
 
 	switch (alc5623->id) {
 	case 0x21:
@@ -1021,7 +1062,7 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	struct alc5623_platform_data *pdata;
 	struct alc5623_priv *alc5623;
 	struct device_node *np;
-	unsigned int vid1, vid2;
+	unsigned int vid2;
 	int ret;
 	u32 val32;
 
@@ -1064,6 +1105,8 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 	if (pdata) {
 		alc5623->add_ctrl = pdata->add_ctrl;
 		alc5623->jack_det_ctrl = pdata->jack_det_ctrl;
+		alc5623->output_mixer_ctrl = pdata->output_mixer_ctrl;
+		alc5623->alc56xx_id = pdata->alc56xx_id;
 	} else {
 		if (client->dev.of_node) {
 			np = client->dev.of_node;
@@ -1073,9 +1116,21 @@ static int alc5623_i2c_probe(struct i2c_client *client,
 			ret = of_property_read_u32(np, "jack-det-ctrl", &val32);
 			if (!ret)
 				alc5623->jack_det_ctrl = val32;
+            ret = of_property_read_u32(np, "output-mixer-ctrl", &val32);
+            if (!ret)
+                alc5623->output_mixer_ctrl = val32;
+            ret = of_property_read_u32(np, "alc56xx-id", &val32);
+            if (!ret)
+                alc5623->alc56xx_id = val32;
 		}
 	}
-	vid2 = 0x23;
+	if(alc5623->alc56xx_id)
+		vid2 = alc5623->alc56xx_id;
+	else
+		vid2 = 0x23;
+
+    dev_dbg(&client->dev, "Found codec id : alc56%02x\n", vid2);
+
 	alc5623->id = vid2;
 	switch (alc5623->id) {
 	case 0x21:

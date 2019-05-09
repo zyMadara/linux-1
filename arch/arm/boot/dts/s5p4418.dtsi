@@ -551,6 +551,7 @@
 			g-np-tx-fifo-size = <512>;
 			g-tx-fifo-size = <512 512 768 768 256 256 256 256 192
 				192 64 64 64 64 64>;
+			nouse_idcon = <0>;
 			status = "disabled";
 		};
 
@@ -820,6 +821,18 @@
 			status = "disabled";
 		};
 
+		decimator_0:decimator_0@c0063000 {
+			compatible = "nexell,nx-decimator";
+			module = <0>;
+			status = "disabled";
+		};
+
+		decimator_1:decimator_1@c0064000 {
+			compatible = "nexell,nx-decimator";
+			module = <1>;
+			status = "disabled";
+		};
+
 		rearcam: rear_camera {
 			compatible = "nexell,nx-rearcam";
 			interrupts = <IRQ_VIP0>, <IRQ_VIP1>;
@@ -981,7 +994,7 @@
 		};
 
 		video-codec@c0080000 {
-			compatible = "nexell, nx-vpu";
+			compatible = "nexell,nx-vpu";
 			reg = <0xc0080000 0x4000>;
 			interrupts = <IRQ_CODA960_HOST>,
 				<IRQ_CODA960_JPG>;

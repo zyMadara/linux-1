@@ -422,7 +422,7 @@ static struct drm_panel_driver {
 		.exit = panel_hdmi_exit,
 	},
 #endif
-#if defined(CONFIG_DRM_NX_TVOUT)
+#if defined(CONFIG_DRM_NX_TVOUT_S5P4418) || defined(CONFIG_DRM_NX_TVOUT_S5P6818)
 	{
 		.name = "tv out",
 		.init = panel_tv_init,
@@ -491,6 +491,7 @@ static const struct of_device_id dt_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dt_of_match);
 
+#ifdef CONFIG_PM_SLEEP
 static int nx_drm_pm_suspend(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
@@ -567,6 +568,7 @@ static int nx_drm_pm_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static const struct dev_pm_ops nx_drm_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(nx_drm_pm_suspend, nx_drm_pm_resume)
@@ -587,6 +589,10 @@ static int __init nx_drm_init(void)
 {
 	int i;
 
+#ifdef CONFIG_DRM_DEBUG
+	    printk(KERN_ALERT "0424: [%s]  +++\n",__func__);
+#endif
+
 	for (i = 0; i < ARRAY_SIZE(drm_panel_drivers); i++) {
 		struct drm_panel_driver *pn = &drm_panel_drivers[i];
 
@@ -594,6 +600,10 @@ static int __init nx_drm_init(void)
 		if (pn->init)
 			pn->init();
 	}
+
+#ifdef CONFIG_DRM_DEBUG
+	    printk(KERN_ALERT "0424: [%s]  ---\n",__func__);
+#endif
 
 	return platform_driver_register(&nx_drm_drviver);
 }
@@ -613,7 +623,11 @@ static void __exit nx_drm_exit(void)
 	}
 }
 
+#ifdef CONFIG_DRM_INIT_LEVEL_UP
+fs_initcall(nx_drm_init);
+#else
 module_init(nx_drm_init);
+#endif
 module_exit(nx_drm_exit);
 
 MODULE_AUTHOR("jhkim <jhkim@nexell.co.kr>");

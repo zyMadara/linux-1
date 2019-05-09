@@ -60,6 +60,7 @@ obj-$(CONFIG_BCM4343)	+= bcmdhd/
 else
 obj-$(CONFIG_BCM43455)	+= bcmdhd/
 endif
+obj-$(CONFIG_BCMDHD)	+= bcmdhd_cypress/
 
 obj-$(CONFIG_BRCMFMAC)	+= brcm80211/
 obj-$(CONFIG_BRCMSMAC)	+= brcm80211/

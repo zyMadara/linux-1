@@ -252,12 +252,6 @@ void nx_vip_set_vipenable(u32 module_index, int b_vipenb, int b_sep_enb,
 	const u16 decienb = 1u << 0;
 
 	p_register = __g_p_register[module_index];
-	temp = p_register->vip_config;
-	if (b_vipenb)
-		temp |= (u16)vipenb;
-	else
-		temp &= (u16)~vipenb;
-	writel(temp, &p_register->vip_config);
 	temp = 0;
 	if (b_sep_enb)
 		temp |= (u16)sepenb;
@@ -266,6 +260,12 @@ void nx_vip_set_vipenable(u32 module_index, int b_vipenb, int b_sep_enb,
 	if (b_deci_enb)
 		temp |= (u16)decienb;
 	writel(temp, &p_register->vip_cdenb);
+	temp = p_register->vip_config;
+	if (b_vipenb)
+		temp |= (u16)vipenb;
+	else
+		temp &= (u16)~vipenb;
+	writel(temp, &p_register->vip_config);
 }
 
 void nx_vip_get_vipenable(u32 module_index, int *p_vipenb, int *p_sep_enb,
@@ -348,11 +348,11 @@ void nx_vip_get_data_mode(u32 module_index, u32 *p_data_order,
 }
 
 void nx_vip_set_sync(u32 module_index, int b_ext_sync,
-		     u32 source_bits, u32 avw, u32 avh, u32 hsw,
-		     u32 hfp, u32 hbp, u32 vsw, u32 vfp, u32 vbp)
+		     u32 source_bits, u32 avw, u32 avh,
+		     u32 pcs, u32 hp, u32 vp, u32 hsw, u32 hfp,
+		     u32 hbp, u32 vsw, u32 vfp, u32 vbp)
 {
 	const u32 drange = 1ul << 9;
-
 	const u32 extsyncenb = 1ul << 8;
 
 	register u32 temp;
@@ -363,6 +363,7 @@ void nx_vip_set_sync(u32 module_index, int b_ext_sync,
 	writel(0xffffffff, &p_register->vip_vend);
 	writel(0xffffffff, &p_register->vip_hbegin);
 	writel(0xffffffff, &p_register->vip_hend);
+
 	temp = (u32)p_register->vip_config;
 	temp &= ~drange;
 	if (b_ext_sync)
@@ -393,6 +394,26 @@ void nx_vip_set_sync(u32 module_index, int b_ext_sync,
 	}
 
 	if (b_ext_sync) {
+#ifdef CONFIG_ARCH_S5P6818
+		if (0 != pcs) {
+			temp = (u32)p_register->vip_padclk_sel;
+			temp &= ~(1 << 1);
+			temp |= (pcs << 1);
+			writel((u16)temp, &p_register->vip_padclk_sel);
+		}
+#endif
+		if (0 != hp) {
+			temp = (u32)p_register->vip_syncctrl;
+			temp &= ~(1 << 8);
+			temp |= (hp << 8);
+			writel((u16)temp, &p_register->vip_syncctrl);
+		}
+		if (0 != vp) {
+			temp = (u32)p_register->vip_syncctrl;
+			temp &= ~(1 << 9);
+			temp |= (vp << 9);
+			writel((u16)temp, &p_register->vip_syncctrl);
+		}
 		if (0 != vbp) {
 			temp = (u32)p_register->vip_syncctrl;
 			temp &= ~(3 << 11);
@@ -428,10 +449,11 @@ void nx_vip_set_sync(u32 module_index, int b_ext_sync,
 }
 
 void nx_vip_set_hvsync(u32 module_index, int b_ext_sync, u32 avw, u32 avh,
-		       u32 hsw, u32 hfp, u32 hbp, u32 vsw, u32 vfp, u32 vbp)
+		       u32 pcs, u32 hp, u32 vp, u32 hsw, u32 hfp, u32 hbp,
+		       u32 vsw, u32 vfp, u32 vbp)
 {
-	nx_vip_set_sync(module_index, b_ext_sync, nx_vip_vd_8bit, avw, avh, hsw,
-			hfp, hbp, vsw, vfp, vbp);
+	nx_vip_set_sync(module_index, b_ext_sync, nx_vip_vd_8bit, avw, avh,
+			pcs, hp, vp, hsw, hfp, hbp, vsw, vfp, vbp);
 }
 
 void nx_vip_set_hvsync_for_mipi(u32 module_index, u32 avw, u32 avh, u32 hsw,
@@ -444,7 +466,7 @@ void nx_vip_set_hvsync_for_mipi(u32 module_index, u32 avw, u32 avh, u32 hsw,
 	int bypass_ext_sync = false;
 
 	nx_vip_set_sync(module_index, b_ext_sync, nx_vip_vd_16bit, avw >> 1,
-			avh, hsw, hfp, 0, vsw, vfp, 0);
+			avh, 0, 0, 0, hsw, hfp, 0, vsw, vfp, 0);
 	nx_vip_set_dvalid_mode(module_index, b_ext_dvalid, bypass_ext_dvalid,
 			       bypass_ext_sync);
 #else
@@ -912,9 +934,6 @@ void nx_vip_set_decimator_addr(u32 module_index, u32 format,
 	writel(left + width, &p_register->deci_crright);
 	writel(top, &p_register->deci_crtop);
 	writel(top + height, &p_register->deci_crbottom);
-
-	writel(stride_y, &p_register->clip_strideh);
-	writel(stride_cb_cr, &p_register->clip_stridel);
 #endif
 }
 
@@ -943,6 +962,15 @@ void nx_vip_get_deci_source(u32 module_index, u32 *p_src_width,
 		*p_src_width = deci_src_width[module_index];
 	if (p_src_height)
 		*p_src_height = deci_src_height[module_index];
+}
+
+void nx_vip_clear_input_fifo(u32 module_index)
+{
+	register struct nx_vip_register_set *p_register;
+
+	p_register = __g_p_register[module_index];
+	writel(0xffff, &p_register->vip_infifoclr);
+	writel(0x4, &p_register->vip_infifoclr);
 }
 
 void nx_vip_dump_register(u32 module)
@@ -1007,6 +1035,7 @@ void nx_vip_dump_register(u32 module)
 	pr_info(" VIP_FIFOCTRL	 = 0x%04x\r\n", p_reg->vip_fifoctrl);
 	pr_info(" VIP_HCOUNT	 = 0x%04x\r\n", p_reg->vip_hcount);
 	pr_info(" VIP_VCOUNT	 = 0x%04x\r\n", p_reg->vip_vcount);
+	pr_info(" VIP_INFIFOCLR  = 0x%04x\r\n", p_reg->vip_infifoclr);
 	pr_info(" VIP_CDENB	 = 0x%04x\r\n", p_reg->vip_cdenb);
 	pr_info(" VIP_ODINT	 = 0x%04x\r\n", p_reg->vip_odint);
 	pr_info(" VIP_IMGWIDTH	 = 0x%04x\r\n", p_reg->vip_imgwidth);

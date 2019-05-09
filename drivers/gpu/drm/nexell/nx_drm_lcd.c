@@ -57,6 +57,7 @@ struct lcd_context {
 	/* properties */
 	int crtc_pipe;
 	unsigned int possible_crtcs_mask;
+	int skip_panel_check;
 };
 
 #define ctx_to_display(c)	\
@@ -81,17 +82,23 @@ static bool panel_lcd_ops_detect(struct device *dev,
 		if (drm_panel) {
 			int ret;
 
-			display->panel = drm_panel;
-			drm_panel_attach(drm_panel, connector);
-
 			if (display->check_panel)
 				return display->is_connected;
+
+			display->panel = drm_panel;
+			drm_panel_attach(drm_panel, connector);
 
 			if (ops->prepare)
 				ops->prepare(display);
 
 			ret = drm_panel_prepare(drm_panel);
 			if (!ret) {
+
+				if(ctx->skip_panel_check){
+					display->is_connected = true;
+					return display->is_connected;
+				}
+
 				drm_panel_unprepare(drm_panel);
 
 				if (ops->unprepare)
@@ -109,6 +116,7 @@ static bool panel_lcd_ops_detect(struct device *dev,
 				display->is_connected ?
 				"connected" : "disconnected");
 
+
 			return display->is_connected;
 		}
 
@@ -117,6 +125,11 @@ static bool panel_lcd_ops_detect(struct device *dev,
 		 */
 		DRM_DEBUG_KMS("Not find panel driver for %s ...\n",
 			nx_panel_get_name(panel_type));
+
+		display->panel = NULL;
+		display->check_panel = false;
+		display->is_connected = false;
+
 		return false;
 	}
 
@@ -519,6 +532,7 @@ static int panel_lcd_parse_dt(struct platform_device *pdev,
 	/* get crtcs params */
 	property_read(node, "crtc-pipe", ctx->crtc_pipe);
 	property_read(node, "crtcs-possible-mask", ctx->possible_crtcs_mask);
+	property_read(node, "skip_panel_check", ctx->skip_panel_check);
 
 	/* get panel timing from local. */
 	np = of_graph_get_remote_port_parent(node);

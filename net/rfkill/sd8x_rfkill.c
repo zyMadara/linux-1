@@ -41,6 +41,7 @@
 #include "../../drivers/mmc/host/dw_mmc.h"
 #include "sd8x_rfkill.h"
 #include <linux/delay.h>
+#include <linux/pinctrl/consumer.h>
 #define SD8X_DEV_NAME "sd8x-rfkill"
 
 /*
@@ -139,7 +140,8 @@ static struct sd8x_rfkill_platform_data
 static int sd8x_pwr_ctrl(struct sd8x_rfkill_platform_data *pdata, int on)
 {
  	int gpio_power_down = pdata->gpio_power_down;
- 
+	int gpio_bt_wlan_1p8 = pdata->gpio_bt_wlan_1p8;
+	int gpio_wlan_2p2 = pdata->gpio_wlan_2p2;
 	pr_info("%s: on=%d\n", __func__, on);
 
 	if (gpio_power_down >= 0) {
@@ -148,24 +150,66 @@ static int sd8x_pwr_ctrl(struct sd8x_rfkill_platform_data *pdata, int on)
 			return -1;
 		}
 	}
-
+	if (gpio_bt_wlan_1p8 >= 0) {
+		if (gpio_request(gpio_bt_wlan_1p8, "sd8xxx bt_wlan_1p8")) {
+			pr_info("gpio bt_wlan_1p8 %d request failed\n",
+				gpio_bt_wlan_1p8);
+			return -1;
+		}
+	}
+	if (gpio_wlan_2p2 >= 0) {
+		if (gpio_request(gpio_wlan_2p2, "sd8xxx wlan_2p2")) {
+			pr_info("gpio wlan_2p2 %d request failed\n",
+				gpio_wlan_2p2);
+			return -1;
+		}
+	}
 
 	if (on) {
 
 		if (gpio_power_down >= 0) {
 			gpio_direction_output(gpio_power_down, 0);
+			if (gpio_bt_wlan_1p8 >= 0)
+				gpio_direction_output(gpio_bt_wlan_1p8, 0);
+			if (gpio_wlan_2p2 >= 0)
+				gpio_direction_output(gpio_wlan_2p2, 0);
+			/* PMIC_EN must be asserted a minimum of 100 ms to guarantee that
+			 * VCORE and AVDD18 are discharged to less than 0.2V for the POR
+			 * to generate properly after PMIC_EN is deasserted.
+			 */
+			msleep(100);
+			if (gpio_wlan_2p2 >= 0)
+				gpio_direction_output(gpio_wlan_2p2, 1);
+			if (gpio_bt_wlan_1p8 >= 0)
+				gpio_direction_output(gpio_bt_wlan_1p8, 1);
 			msleep(10);
 			gpio_direction_output(gpio_power_down, 1);
 		}
 
 			msleep(1);
 	} else {
-		if (gpio_power_down >= 0)
+		if (gpio_power_down >= 0) {
 			gpio_direction_output(gpio_power_down, 0);
+			if (gpio_bt_wlan_1p8 >= 0)
+				gpio_direction_output(gpio_bt_wlan_1p8, 0);
+			if (gpio_wlan_2p2 >= 0)
+				gpio_direction_output(gpio_wlan_2p2, 0);
+		}
 	}
-    printk("### power_down=%d ####\n", gpio_get_value(gpio_power_down));
+	printk("### power_down=%d ####\n", gpio_get_value(gpio_power_down));
+	if (gpio_bt_wlan_1p8 >= 0)
+		printk("### bt_wlan_1p8=%d ####\n",
+			gpio_get_value(gpio_bt_wlan_1p8));
+	if (gpio_wlan_2p2 >= 0)
+		printk("### wlan_2p2=%d ####\n",
+			gpio_get_value(gpio_wlan_2p2));
+
 	if (gpio_power_down >= 0)
 		gpio_free(gpio_power_down);
+	if (gpio_bt_wlan_1p8 >= 0)
+		gpio_free(gpio_bt_wlan_1p8);
+	if (gpio_wlan_2p2>= 0)
+		gpio_free(gpio_wlan_2p2);
 
 	return 0;
 }
@@ -542,20 +586,34 @@ static int sd8x_rfkill_probe_dt(struct platform_device *pdev)
 	gpio = of_get_named_gpio(np, "edge-wakeup-gpio", 0);
 	if (unlikely(gpio < 0)) {
 		dev_warn(&pdev->dev, "edge-wakeup-gpio undefined\n");
-		pdata->gpio_edge_wakeup = -1;
+		pdata->gpio_edge_wakeup = -ENODEV;
 	} else {
 		pdata->gpio_edge_wakeup = gpio;
 	}
- 
 
 	gpio = of_get_named_gpio(np, "pd-gpio", 0);
 	if (unlikely(gpio < 0)) {
-		dev_err(&pdev->dev, "pd-gpio undefined\n");
-		pdata->gpio_power_down = -1;
+		dev_warn(&pdev->dev, "pd-gpio undefined\n");
+		pdata->gpio_power_down = -ENODEV;
 	} else {
 		pdata->gpio_power_down = gpio;
 	}
 
+	gpio = of_get_named_gpio(np, "bt-wlan-1p8-gpio", 0);
+	if (gpio < 0) {
+		dev_warn(&pdev->dev, "bt-wlan-1p8-gpio undefined\n");
+		pdata->gpio_bt_wlan_1p8 = -ENODEV;
+	} else {
+		pdata->gpio_bt_wlan_1p8 = gpio;
+	}
+
+	gpio = of_get_named_gpio(np, "wlan-2p2-gpio", 0);
+	if (gpio < 0) {
+		dev_warn(&pdev->dev, "wlan-2p2-gpio undefined\n");
+		pdata->gpio_wlan_2p2 = -ENODEV;
+	} else {
+		pdata->gpio_wlan_2p2 = gpio;
+	}
 
 	return 0;
 }

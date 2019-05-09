@@ -226,7 +226,11 @@ DHDCFLAGS += -DUSE_WFA_CERT_CONF
 # Lollipop
 ###########
 # Definitions are filtered by Kernel version
-DHDCFLAGS += -DWL_CFG80211_P2P_DEV_IF
+ifneq ($(CONFIG_ANDROID),)
+  DHDCFLAGS += -DWL_ENABLE_P2P_IF
+else
+  DHDCFLAGS += -DWL_CFG80211_P2P_DEV_IF
+endif
 DHDCFLAGS += -DWL_SUPPORT_BACKPORTED_KPATCHES
 # Default definitions for KitKat, Lollipop
 DHDCFLAGS += -DWL_CFG80211_STA_EVENT
@@ -510,7 +514,6 @@ ifneq ($(CONFIG_BCM43455),)
   DHDCFLAGS += -DBCMCCX
   DHDCFLAGS += -DWES_SUPPORT
   DHDCFLAGS += -DOKC_SUPPORT
-  DHDCFLAGS += -DWLTDLS -DWLTDLS_AUTO_ENABLE
   DHDCFLAGS += -DWLFBT
   DHDCFLAGS += -DDHD_ENABLE_LPC
   DHDCFLAGS += -DWLAIBSS
@@ -805,6 +808,12 @@ DHDOFILES += dhd_custom_exynos.o
 endif
 ifneq ($(CONFIG_ARCH_S5P4418),)
 DHDOFILES += dhd_custom_exynos.o
+endif
+endif
+
+ifeq ($(CONFIG_OF),y)
+ifneq ($(CONFIG_ARCH_S5P4418),)
+DHDOFILES += dhd_custom_nexell.o
 endif
 endif
 

@@ -37,24 +37,22 @@
 struct nx_resolution {
 	uint32_t width;
 	uint32_t height;
-	uint32_t interval;
+	uint32_t interval[2];
 };
 
 static struct nx_resolution supported_resolutions[] = {
 	{
 		.width	= 704,
 		.height = 480,
-		.interval = 30,
+		.interval[0] = 15,
+		.interval[1] = 30,
 	}/*,
 	{
 		.width	= 640,
 		.height = 480,
-		.interval = 30,
+		.interval[0] = 15,
+		.interval[1] = 30,
 	}*/
-};
-
-static const uint32_t avail_fps_range[] = {
-	15, 30
 };
 
 /* #define BRIGHTNESS_TEST */
@@ -371,15 +369,12 @@ static int tw9900_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	if (enable) {
 		if (_state.first) {
-			int  i = 0;
 			struct tw9900_state *me = &_state;
 			struct reg_val *reg_val = _sensor_init_data;
 
 			while (reg_val->reg != 0xff) {
 				_i2c_write_byte(me->i2c_client, reg_val->reg,
 					reg_val->val);
-				mdelay(10);
-				i++;
 				reg_val++;
 			}
 			_state.first = false;
@@ -421,20 +416,26 @@ static int tw9900_enum_frame_size(struct v4l2_subdev *sd,
 
 static int tw9900_enum_frame_interval(struct v4l2_subdev *sd,
 				      struct v4l2_subdev_pad_config *cfg,
-				      struct v4l2_subdev_frame_interval_enum *frame)
+				      struct v4l2_subdev_frame_interval_enum
+				      *frame)
 {
-	vmsg("%s, index:%d\n", __func__, frame->index);
-	if (frame->index >= ARRAY_SIZE(supported_resolutions))
-		return -ENODEV;
+	int i;
 
-	frame->width = supported_resolutions[frame->index].width;
-	frame->height = supported_resolutions[frame->index].height;
-	frame->interval.numerator = supported_resolutions[frame->index].interval;
-	frame->interval.denominator = 1;
-	vmsg("index:%d, width:%d, height:%d, interval:%d:%d\n", frame->index,
-		frame->width, frame->height,
-		frame->interval.numerator, frame->interval.denominator);
-	return 0;
+	vmsg("%s, %s interval\n", __func__, (frame->index) ? "max" : "min");
+
+	for (i = 0; i < ARRAY_SIZE(supported_resolutions); i++) {
+		if ((frame->width == supported_resolutions[i].width) &&
+		    (frame->height == supported_resolutions[i].height)) {
+			frame->interval.numerator = 1;
+			frame->interval.denominator =
+				supported_resolutions[i].interval[frame->index];
+			vmsg("[%s] width:%d, height:%d, interval:%d\n",
+			     __func__, frame->width, frame->height,
+			     frame->interval.denominator);
+			return false;
+		}
+	}
+	return -EINVAL;
 }
 
 static const struct v4l2_subdev_core_ops tw9900_subdev_core_ops = {
@@ -521,7 +522,22 @@ static struct i2c_driver tw9900_i2c_driver = {
 	.id_table = tw9900_id,
 };
 
+#ifdef CONFIG_V4L2_INIT_LEVEL_UP
+static int __init tw9900_mod_init(void)
+{
+	return i2c_add_driver(&tw9900_i2c_driver);
+}
+
+static void __exit tw9900_mod_exit(void)
+{
+	i2c_del_driver(&tw9900_i2c_driver);
+}
+
+subsys_initcall(tw9900_mod_init);
+module_exit(tw9900_mod_exit);
+#else
 module_i2c_driver(tw9900_i2c_driver);
+#endif
 
 MODULE_DESCRIPTION("TW9900 Camera Sensor Driver");
 MODULE_AUTHOR("<jkchoi@nexell.co.kr>");

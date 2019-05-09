@@ -781,20 +781,33 @@ dtb-$(CONFIG_ARCH_S5P4418) += \
 	s5p4418-drone.dtb \
 	s5p4418-artik530-raptor-rev00.dtb \
 	s5p4418-artik530-raptor-rev03.dtb \
-	s5p4418-artik532-raptor-rev03.dtb \
 	s5p4418-artik530-explorer.dtb \
-	s5p4418-artik532-explorer.dtb \
+	s5p4418-artik533-raptor-rev00.dtb \
+	s5p4418-artik305-raptor-rev00.dtb \
+	s5p4418-artik305-raptor-rev04.dtb \
+	s5p4418-artik305-explorer.dtb \
+	s5p4418-artik533-compy.dtb \
 	s5p4418-avn_ref-rev00.dtb \
 	s5p4418-navi_ref-rev00.dtb \
 	s5p4418-navi_ref-rev01.dtb \
 	s5p4418-daudio_ref-rev00.dtb \
 	s5p4418-daudio_ref-rev01.dtb \
-	s5p4418-smart_voice.dtb \
+	s5p4418-smart_voice-rev00.dtb \
+	s5p4418-smart_voice-rev01.dtb \
+	s5p4418-allo_display-rev00.dtb \
+	s5p4418-allo_display-rev01.dtb \
 	s5p4418-zh_dragon-rev00.dtb \
 	s5p4418-zh_blackdragon-rev00.dtb \
+	s5p4418-zh_hmdragon-rev00.dtb \
 	s5p4418-daudio_covi-rev00.dtb \
 	s5p4418-ff_voice.dtb \
-	s5p4418-clova-rev00.dtb
+	s5p4418-clova-rev00.dtb \
+	s5p4418-svm_ref-rev00.dtb \
+	s5p4418-daudio_cona-rev00.dtb \
+	s5p4418-cluster_ref-rev00.dtb \
+	s5p4418-convergence_svmc-rev00.dtb \
+	s5p4418-con_svma-rev00.dtb \
+	s5p4418-convergence_daudio-rev00.dtb
 dtb-$(CONFIG_ARCH_S5P4418) += \
 	s5p4418-nanopi2-rev01.dtb \
 	s5p4418-nanopi2-rev02.dtb \
@@ -802,6 +815,10 @@ dtb-$(CONFIG_ARCH_S5P4418) += \
 	s5p4418-nanopi2-rev04.dtb \
 	s5p4418-nanopi2-rev07.dtb \
 	s5p4418-nanopi2-rev103.dtb
+endif
+
+ifeq ($(CONFIG_ARCH_S5P4418),y)
+	DTC_FLAGS	?= -@ -H epapr
 endif
 
 dtstree		:= $(srctree)/$(src)
@@ -819,3 +836,4 @@ targets += $(DTB_LIST)
 
 always		:= $(DTB_LIST)
 clean-files	:= *.dtb
+subdir-y	:= overlays

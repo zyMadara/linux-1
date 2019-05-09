@@ -25,8 +25,8 @@
 #include <linux/io.h>
 #include <linux/reset.h>
 #include <linux/clk.h>
-#include <linux/list.h>
 #include <linux/interrupt.h>
+#include <linux/delay.h>
 
 #include <dt-bindings/media/nexell-vip.h>
 
@@ -36,8 +36,26 @@
 
 #define NX_VIP_DEV_NAME		"nx-vip"
 
+#define CLK_PLL3		3
+#define CLK_EXT_CLK1		4
+
+#define VIP_PCLKENB		3
+#define VIP_BCLKENB		0
+#define VIP_CLKGEN_ENB		2
+#define VIP_CLKGEN_OUTCLKINV	0
+#define VIP_CLKGEN_CLKSRC_SEL	2
+#define VIP_CLKGEN_CLKDIV	5
+#define VIP_CLKGEN_OUTCLKENB	15
+
+#define VIP_BCLKENB_ALWAYS	0x3
+
 /* if defined, when vip enabled, register of VIP are dumped */
-/* #define DUMP_REGISTER */
+/*#define DUMP_REGISTER*/
+
+struct nx_vip_clk {
+	u32 vip_clk_enb;
+	u32 vip_clk_gen;
+};
 
 struct nx_vip {
 	u32 module;
@@ -45,12 +63,12 @@ struct nx_vip {
 	int irq;
 	struct reset_control *rst;
 	struct clk *clk;
-
+	struct nx_vip_clk *clk_base;
 	atomic_t running_bitmap;
 
 	spinlock_t lock;
-	struct list_head irq_entry_list;
-	int irq_entry_count;
+	struct nx_v4l2_irq_entry *clipper;
+	struct nx_v4l2_irq_entry *decimator;
 
 	bool clipper_enable;
 	bool decimator_enable;
@@ -58,6 +76,8 @@ struct nx_vip {
 };
 
 static struct nx_vip *_nx_vip_object[NUMBER_OF_VIP_MODULE];
+
+static void hw_child_enable(struct nx_vip *me, u32 child);
 
 /**
  * static functions
@@ -70,6 +90,7 @@ static int nx_vip_parse_dt(struct platform_device *pdev, struct nx_vip *me)
 	struct resource res;
 	char clk_names[5] = {0, };
 	char reset_names[12] = {0, };
+	u32 clk_base;
 
 	ret = of_address_to_resource(np, 0, &res);
 	if (ret) {
@@ -99,14 +120,18 @@ static int nx_vip_parse_dt(struct platform_device *pdev, struct nx_vip *me)
 		return -EINVAL;
 	}
 
-	sprintf(clk_names, "vip%d", me->module);
+	snprintf(clk_names, sizeof(clk_names), "vip%d", me->module);
 	me->clk = devm_clk_get(dev, clk_names);
 	if (IS_ERR(me->clk)) {
 		dev_err(dev, "failed to devm_clk_get for %s\n", clk_names);
 		return -ENODEV;
 	}
+	if (of_property_read_u32(np, "clk-base", &clk_base))
+		me->clk_base = NULL;
+	else
+		me->clk_base = ioremap_nocache(clk_base, 0x1000);
 
-	sprintf(reset_names, "vip%d-reset", me->module);
+	snprintf(reset_names, sizeof(reset_names), "vip%d-reset", me->module);
 	me->rst = devm_reset_control_get(dev, reset_names);
 	if (IS_ERR(me->rst)) {
 		dev_err(dev, "failed to get reset control\n");
@@ -119,17 +144,23 @@ static int nx_vip_parse_dt(struct platform_device *pdev, struct nx_vip *me)
 static irqreturn_t vip_irq_handler(int irq, void *desc)
 {
 	struct nx_vip *me = desc;
-	struct nx_v4l2_irq_entry *e;
 	unsigned long flags;
+	int clipper = 0, decimator = 0;
 
 	nx_vip_clear_interrupt_pending_all(me->module);
 
+	clipper = me->clipper_enable;
+	decimator = me->decimator_enable;
+
 	spin_lock_irqsave(&me->lock, flags);
-	if (!list_empty(&me->irq_entry_list))
-		list_for_each_entry(e, &me->irq_entry_list, entry)
-			e->handler(e->priv);
+	if (clipper && me->clipper)
+		me->clipper->handler(me->clipper->priv);
+	if (decimator && me->decimator)
+		me->decimator->handler(me->decimator->priv);
+
 	spin_unlock_irqrestore(&me->lock, flags);
 
+	hw_child_enable(me, NX_ATOMIC_READ(&me->running_bitmap));
 	return IRQ_HANDLED;
 }
 
@@ -145,22 +176,57 @@ static void hw_child_enable(struct nx_vip *me, u32 child)
 		decimator_enable = true;
 
 	if (me->clipper_enable != clipper_enable ||
-	    me->decimator_enable != decimator_enable) {
-		if (clipper_enable || decimator_enable) {
+			me->decimator_enable != decimator_enable) {
+		if (!clipper_enable && !decimator_enable) {
 			nx_vip_set_interrupt_enable_all(me->module, false);
-			nx_vip_clear_interrupt_pending_all(me->module);
-			nx_vip_set_vipenable(me->module, true, true,
-					     clipper_enable, decimator_enable);
-			nx_vip_set_interrupt_enable(me->module,
-						    VIP_OD_INT, true);
+			nx_vip_set_vipenable(me->module, false, false, false, false);
+			pr_debug("[VIP %d] vip off\n", me->module);
 		} else {
-			nx_vip_set_vipenable(me->module, false, false, false,
-					     false);
+			if (clipper_enable && !decimator_enable) {
+				if (me->decimator_enable) {
+					pr_debug("[VIP %d] decimator off\n", me->module);
+				} else {
+#ifdef WAIT_VIP_INT
+					int timeout = 0;
+
+					nx_vip_set_vipenable(me->module, true, true, false, false);
+					while (!nx_vip_get_interrupt_pending(me->module, VIP_OD_INT)) {
+						usleep_range(4000, 5000);
+						if (++timeout == 100) {
+							pr_err("[VIP %d] enable timeout\n", me->module);
+							break;
+						}
+					}
+#endif
+					nx_vip_clear_interrupt_pending_all(me->module);
+					nx_vip_set_interrupt_enable(me->module, VIP_OD_INT, true);
+					pr_debug("[VIP %d] clipper only on\n", me->module);
+				}
+				nx_vip_set_vipenable(me->module, true, true, true, false);
+			} else if (decimator_enable && !clipper_enable) {
+				nx_vip_set_vipenable(me->module, true, true, false, true);
+				if (me->clipper_enable) {
+					pr_debug("[VIP %d] clipper off\n", me->module);
+				} else {
+					nx_vip_set_interrupt_enable(me->module, VIP_OD_INT, true);
+					pr_debug("[VIP %d] decimator only on\n", me->module);
+				}
+			} else {
+				if (!me->clipper_enable) {
+					nx_vip_set_vipenable(me->module, true, true, true, true);
+					pr_debug("[VIP %d] clipper on\n", me->module);
+				}
+				if (!me->decimator_enable) {
+					nx_vip_set_vipenable(me->module, true, true, true, true);
+					pr_debug("[VIP %d] decimator on\n", me->module);
+				}
+			}
 		}
-		/* nx_vip_dump_register(me->module); */
-		me->clipper_enable = clipper_enable;
-		me->decimator_enable = decimator_enable;
 	}
+
+	/* nx_vip_dump_register(me->module); */
+	me->clipper_enable = clipper_enable;
+	me->decimator_enable = decimator_enable;
 }
 
 
@@ -183,6 +249,7 @@ EXPORT_SYMBOL_GPL(nx_vip_is_valid);
 int nx_vip_reset(u32 module)
 {
 	struct nx_vip *me;
+	int ret = 0;
 
 	if (module >= NUMBER_OF_VIP_MODULE) {
 		pr_err("[nx vip] invalid module num %d\n", module);
@@ -191,11 +258,39 @@ int nx_vip_reset(u32 module)
 	me = _nx_vip_object[module];
 
 	if (reset_control_status(me->rst))
-		return reset_control_reset(me->rst);
+		ret = reset_control_reset(me->rst);
+	nx_vip_clear_input_fifo(module);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL_GPL(nx_vip_reset);
+
+int nx_vip_clock_config(u32 module, u32 source, u32 frequency)
+{
+	struct nx_vip *me;
+	int div = 0;
+	u32 reg_value;
+
+	if (module >= NUMBER_OF_VIP_MODULE) {
+		pr_err("[nx vip] invalid module num %d\n", module);
+		return -ENODEV;
+	}
+	me = _nx_vip_object[module];
+
+	if (me->clk_base == NULL) {
+		pr_err("[nx vip] no clk base address\n");
+		return -ENODEV;
+	}
+	reg_value = div << VIP_CLKGEN_CLKDIV;
+	reg_value |= source << VIP_CLKGEN_CLKSRC_SEL;
+	if (source == CLK_PLL3 || source == CLK_EXT_CLK1)
+		reg_value |= 1 << VIP_CLKGEN_OUTCLKENB;
+	writel(reg_value, &me->clk_base->vip_clk_gen);
+	if (frequency)
+		clk_set_rate(me->clk, frequency);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nx_vip_clock_config);
 
 int nx_vip_clock_enable(u32 module, bool enable)
 {
@@ -207,15 +302,26 @@ int nx_vip_clock_enable(u32 module, bool enable)
 	}
 	me = _nx_vip_object[module];
 
-	if (enable)
-		return clk_prepare_enable(me->clk);
+	if (me->clk_base) {
+		u32 reg_value;
 
-	clk_disable_unprepare(me->clk);
+		reg_value =  enable << VIP_PCLKENB;
+		reg_value |=  (enable) ? VIP_BCLKENB_ALWAYS : 0 << VIP_BCLKENB;
+		reg_value |= (enable << VIP_CLKGEN_ENB);
+		writel(reg_value, &me->clk_base->vip_clk_enb);
+		if (!enable)
+			writel(0x0000, &me->clk_base->vip_clk_gen);
+	} else {
+		if (enable)
+			return clk_prepare_enable(me->clk);
+
+		clk_disable_unprepare(me->clk);
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nx_vip_clock_enable);
 
-int nx_vip_register_irq_entry(u32 module, struct nx_v4l2_irq_entry *e)
+int nx_vip_register_irq_entry(u32 module, u32 child, struct nx_v4l2_irq_entry *e)
 {
 	unsigned long flags;
 	struct nx_vip *me;
@@ -227,21 +333,16 @@ int nx_vip_register_irq_entry(u32 module, struct nx_v4l2_irq_entry *e)
 	me = _nx_vip_object[module];
 
 	spin_lock_irqsave(&me->lock, flags);
-	if (me->irq_entry_count >= 2) {
-		WARN_ON(1);
-		spin_unlock_irqrestore(&me->lock, flags);
-		return 0;
-	}
-
-	list_add_tail(&e->entry, &me->irq_entry_list);
-	me->irq_entry_count++;
+	if (child & VIP_CLIPPER)
+		me->clipper = e;
+	else if (child & VIP_DECIMATOR)
+		me->decimator = e;
 	spin_unlock_irqrestore(&me->lock, flags);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nx_vip_register_irq_entry);
 
-int nx_vip_unregister_irq_entry(u32 module, struct nx_v4l2_irq_entry *e)
+int nx_vip_unregister_irq_entry(u32 module, u32 child, struct nx_v4l2_irq_entry *e)
 {
 	unsigned long flags;
 	struct nx_vip *me;
@@ -253,19 +354,27 @@ int nx_vip_unregister_irq_entry(u32 module, struct nx_v4l2_irq_entry *e)
 	me = _nx_vip_object[module];
 
 	spin_lock_irqsave(&me->lock, flags);
-	if (me->irq_entry_count <= 0) {
-		WARN_ON(1);
-		spin_unlock_irqrestore(&me->lock, flags);
-		return 0;
-	}
-
-	list_del(&e->entry);
-	me->irq_entry_count--;
+	if (child & VIP_CLIPPER)
+		me->clipper = NULL;
+	else if (child & VIP_DECIMATOR)
+		me->decimator = NULL;
 	spin_unlock_irqrestore(&me->lock, flags);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nx_vip_unregister_irq_entry);
+
+int nx_vip_is_running(u32 module, u32 child)
+{
+	struct nx_vip *me;
+
+	if (module >= NUMBER_OF_VIP_MODULE) {
+		pr_err("[nx vip] invalid module num %d\n", module);
+		return 0;
+	}
+	me = _nx_vip_object[module];
+	return (child & NX_ATOMIC_READ(&me->running_bitmap));
+}
+EXPORT_SYMBOL_GPL(nx_vip_is_running);
 
 int nx_vip_run(u32 module, u32 child)
 {
@@ -278,7 +387,8 @@ int nx_vip_run(u32 module, u32 child)
 	me = _nx_vip_object[module];
 
 	NX_ATOMIC_SET_MASK(child, &me->running_bitmap);
-	hw_child_enable(me, NX_ATOMIC_READ(&me->running_bitmap));
+	if (!me->clipper_enable && !me->decimator_enable)
+		hw_child_enable(me, NX_ATOMIC_READ(&me->running_bitmap));
 
 #ifdef DUMP_REGISTER
 	nx_vip_dump_register(module);
@@ -299,11 +409,28 @@ int nx_vip_stop(u32 module, u32 child)
 	me = _nx_vip_object[module];
 
 	NX_ATOMIC_CLEAR_MASK(child, &me->running_bitmap);
-	hw_child_enable(me, NX_ATOMIC_READ(&me->running_bitmap));
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(nx_vip_stop);
+
+int nx_vip_force_stop(u32 module, u32 child)
+{
+	struct nx_vip *me;
+
+	if (module >= NUMBER_OF_VIP_MODULE) {
+		pr_err("[nx vip] invalid module num %d\n", module);
+		return -ENODEV;
+	}
+	me = _nx_vip_object[module];
+
+	pr_debug("[VIP %d] force stop child 0x%x\n", module, child);
+	NX_ATOMIC_CLEAR_MASK(child, &me->running_bitmap);
+	hw_child_enable(me, NX_ATOMIC_READ(&me->running_bitmap));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(nx_vip_force_stop);
 
 /**
  * supported formats
@@ -356,12 +483,10 @@ EXPORT_SYMBOL_GPL(nx_vip_find_mbus_format);
 
 static const struct nx_mem_fmt_map supported_mem_formats[] = {
 	{
-#ifndef CONFIG_ARCH_S5P4418
 		.pixel_fmt	= V4L2_PIX_FMT_YUYV,
 		.media_bus_fmt	= MEDIA_BUS_FMT_YUYV8_1X16,
 		.nx_mem_fmt	= nx_vip_format_yuyv,
 	}, {
-#endif
 		.pixel_fmt	= V4L2_PIX_FMT_YUV420,
 		.media_bus_fmt	= MEDIA_BUS_FMT_YUYV12_1X24,
 		.nx_mem_fmt	= nx_vip_format_420,
@@ -462,13 +587,13 @@ static int nx_vip_probe(struct platform_device *pdev)
 	_nx_vip_object[me->module] = me;
 
 	nx_vip_set_base_address(me->module, me->base);
-	INIT_LIST_HEAD(&me->irq_entry_list);
 	spin_lock_init(&me->lock);
 
-	nx_vip_clock_enable(me->module, true);
-	nx_vip_reset(me->module);
-
-	sprintf(me->irq_name, "nx-vip%d", me->module);
+	if (me->clk_base == NULL) {
+		nx_vip_clock_enable(me->module, true);
+		nx_vip_reset(me->module);
+	}
+	snprintf(me->irq_name, sizeof(me->irq_name), "nx-vip%d", me->module);
 	ret = devm_request_irq(&pdev->dev, me->irq, &vip_irq_handler,
 			       IRQF_SHARED, me->irq_name, me);
 	if (ret) {
@@ -529,6 +654,18 @@ static void __exit nx_vip_exit(void)
 
 core_initcall_sync(nx_vip_init);
 __exitcall(nx_vip_exit);
+#elif defined(CONFIG_V4L2_INIT_LEVEL_UP)
+static int __init nx_vip_init(void)
+{
+	return platform_driver_register(&nx_vip_driver);
+}
+
+static void __exit nx_vip_exit(void)
+{
+	platform_driver_unregister(&nx_vip_driver);
+}
+subsys_initcall(nx_vip_init);
+module_exit(nx_vip_exit)
 #else
 module_platform_driver(nx_vip_driver);
 #endif

@@ -360,8 +360,10 @@ void nx_soc_dp_cont_power_on(struct nx_control_dev *control, bool on)
 			nx_dpc_set_clock_divisor_enable(module, 1);
 		}
 	} else {
-		nx_dpc_set_dpc_enable(module, 0);
-		nx_dpc_set_clock_divisor_enable(module, 0);
+		if (control->panel_type != NX_PANEL_TYPE_TV) {
+			nx_dpc_set_dpc_enable(module, 0);
+			nx_dpc_set_clock_divisor_enable(module, 0);
+		}
 	}
 
 	/*
@@ -500,13 +502,18 @@ int nx_soc_dp_plane_top_set_enable(struct nx_top_plane *top, bool on)
 	struct nx_plane_layer *layer;
 	int module = top->module;
 
-	pr_debug("%s: crtc.%d, %s %dx%d\n",
-		__func__, module, on ? "on" : "off", top->width, top->height);
+	pr_debug("%s: crtc.%d, %s %dx%d, interlace:%s\n",
+		__func__, module, on ? "on" : "off",
+		top->width, top->height, top->interlace ? "O" : "X");
 
 	if (on) {
 		int m_lock_size = 16;
 
+#ifdef CONFIG_BOARD_ZH_HMDRAGON
+		nx_mlc_set_field_enable(module, 0);
+#else
 		nx_mlc_set_field_enable(module, top->interlace);
+#endif
 		nx_mlc_set_rgblayer_gama_table_power_mode(module, 0, 0, 0);
 		nx_mlc_set_rgblayer_gama_table_sleep_mode(module, 1, 1, 1);
 		nx_mlc_set_rgblayer_gamma_enable(module, 0);
@@ -705,9 +712,9 @@ void nx_soc_dp_plane_rgb_set_color(struct nx_plane_layer *layer,
 	int module = layer->module;
 	int num = layer->num;
 
-	pr_debug("%s: %s, type:%d color:0x%x, pixel %d, %s\n",
+	pr_debug("%s: %s, type:%d color:0x%x, pixel %d, %s (%d)\n",
 		__func__, layer->name, type, color, layer->pixelbyte,
-		on ? "on" : "off");
+		on ? "on" : "off", num);
 
 	switch (type) {
 	case NX_COLOR_ALPHA:
@@ -725,12 +732,12 @@ void nx_soc_dp_plane_rgb_set_color(struct nx_plane_layer *layer,
 		break;
 
 	case NX_COLOR_TRANS:
-		if (layer->pixelbyte == 1) {
+		if (layer->num != LAYER_VIDEO && layer->pixelbyte == 1) {
 			color = R8G8B8toR3G3B2((unsigned int)color);
 			color = R3G3B2toR8G8B8((u8) color);
 		}
 
-		if (layer->pixelbyte == 2) {
+		if (layer->num != LAYER_VIDEO && layer->pixelbyte == 2) {
 			color = R8G8B8toR5G6B5((unsigned int)color);
 			color = R5G6B5toR8G8B8((u_short) color);
 		}

@@ -25,13 +25,18 @@
 #include "s5pxx18_drv.h"
 
 #define	DEF_VOLTAGE_LEVEL	(0x20)
+#define	DEF_FC_CODE	(0x4)
 
-static void lvds_phy_reset(struct reset_control *rsc[], int num)
+static int lvds_phy_reset(struct reset_control *rsc[], int num)
 {
 	int count = num;
 	int i;
 
-	pr_debug("%s: resets %d\n", __func__, num);
+	if (num < 0) {
+		pr_err("%s: resets num (currently %d) must be bigger than 0\n",
+				__func__, num);
+		return -EINVAL;
+	}
 
 	for (i = 0; count > i; i++)
 		reset_control_assert(rsc[i]);
@@ -40,6 +45,25 @@ static void lvds_phy_reset(struct reset_control *rsc[], int num)
 
 	for (i = 0; count > i; i++)
 		reset_control_deassert(rsc[i]);
+
+	return 0;
+}
+
+static int lvds_phy_reset_assert(struct reset_control *rsc[], int num)
+{
+	int count = num;
+	int i;
+
+	if (num < 0) {
+		pr_err("%s: resets num (currently %d) must be bigger than 0\n",
+				__func__, num);
+		return -EINVAL;
+	}
+
+	for (i = 0; count > i; i++)
+		reset_control_assert(rsc[i]);
+
+	return 0;
 }
 
 static int lvds_ops_open(struct nx_drm_display *display, int pipe)
@@ -61,10 +85,12 @@ static int lvds_ops_prepare(struct nx_drm_display *display)
 	struct nx_lvds_dev *lvds = display->context;
 	struct nx_control_res *res = &lvds->control.res;
 	struct nx_control_info *ctrl = &lvds->control.ctrl;
-	enum nx_lvds_format format = NX_LVDS_FORMAT_JEIDA;
+	enum nx_lvds_format format = lvds->lvds_format;
 	int clkid = NX_CLOCK_LVDS;
-	u32 voltage = DEF_VOLTAGE_LEVEL;
+	u32 voltage = lvds->voltage_level;
+	u32 fc_code = lvds->fc_code;
 	u32 val;
+	int err;
 
 	/*
 	 *-------- predefined type.
@@ -98,9 +124,8 @@ static int lvds_ops_prepare(struct nx_drm_display *display)
 		return 0;
 	}
 #endif
-	if (lvds) {
-		format = lvds->lvds_format;
-		voltage = lvds->voltage_level;
+	if (!lvds) {
+		return -EINVAL;
 	}
 
 	pr_debug("%s: format: %d\n", __func__, format);
@@ -177,7 +202,7 @@ static int lvds_ops_prepare(struct nx_drm_display *display)
 		| (0<<22) /* SRC_TRH, source termination resistor select pin */
 		| (voltage<<14)
 		| (0x01<<6) /* CNT_PEN_H, TX pre-emphasis level control */
-		| (0x4<<3) /* FC_CODE, vos control pin */
+		| (fc_code<<3) /* FC_CODE, vos control pin */
 		| (0<<2) /* OUTCON, TX Driver state pin, 0:Hi-z, 1:Low */
 		| (0<<1) /* LOCK_CNT, Lock signal selection pin, enable */
 		| (0<<0) /* AUTO_DSK_SEL, auto deskew selection pin, normal */
@@ -244,7 +269,9 @@ static int lvds_ops_prepare(struct nx_drm_display *display)
 	/*
 	 * LVDS PHY Reset, make sure last.
 	 */
-	lvds_phy_reset(res->sub_resets, res->num_sub_resets);
+	err = lvds_phy_reset(res->sub_resets, res->num_sub_resets);
+	if (err < 0)
+		return -EINVAL;
 
 	return 0;
 }
@@ -265,15 +292,17 @@ static int lvds_ops_enable(struct nx_drm_display *display)
 
 static int lvds_ops_disable(struct nx_drm_display *display)
 {
+	struct nx_lvds_dev *lvds = display->context;
+	int module = lvds->control.module;
 	int clkid = NX_CLOCK_LVDS;
+	struct nx_control_res *res = &lvds->control.res;
 
 	pr_debug("%s\n", __func__);
 
-	/* SPDIF and MIPI */
-	nx_disp_top_clkgen_set_clock_divisor_enable(clkid, 0);
-
-	/* START: CLKGEN, MIPI is started in setup function */
+	nx_disp_top_set_lvdsmux(0, module);
 	nx_disp_top_clkgen_set_clock_divisor_enable(clkid, false);
+
+	lvds_phy_reset_assert(res->sub_resets, res->num_sub_resets);
 
 	return 0;
 }
@@ -307,6 +336,7 @@ void *nx_drm_display_lvds_get(struct device *dev,
 	struct nx_lvds_dev *lvds;
 	u32 format;
 	u32 voltage;
+	u32 fc_code;
 
 	lvds = kzalloc(sizeof(*lvds), GFP_KERNEL);
 	if (!lvds)
@@ -314,9 +344,18 @@ void *nx_drm_display_lvds_get(struct device *dev,
 
 	if (!of_property_read_u32(node, "format", &format))
 		lvds->lvds_format = format;
+	else
+		lvds->lvds_format = NX_LVDS_FORMAT_VESA;
 
 	if (!of_property_read_u32(node, "voltage_level", &voltage))
 		lvds->voltage_level = voltage;
+	else
+		lvds->voltage_level = DEF_VOLTAGE_LEVEL;
+
+	if (!of_property_read_u32(node, "fc_code", &fc_code))
+		lvds->fc_code = fc_code;
+	else
+		lvds->fc_code = DEF_FC_CODE;
 
 	display->context = lvds;
 	display->ops = &lvds_ops;

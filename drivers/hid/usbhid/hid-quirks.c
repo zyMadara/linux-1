@@ -30,6 +30,7 @@ static const struct hid_blacklist {
 	__u16 idProduct;
 	__u32 quirks;
 } hid_blacklist[] = {
+	{ USB_VENDOR_ID_APPLE, USB_PRODUCT_ID_APPLE_IPOD, HID_QUIRK_NO_INIT_REPORTS },
 	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_GAMEPAD, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_AASHIMA, USB_DEVICE_ID_AASHIMA_PREDATOR, HID_QUIRK_BADPAD },
 	{ USB_VENDOR_ID_ALPS, USB_DEVICE_ID_IBM_GAMEPAD, HID_QUIRK_BADPAD },
@@ -72,6 +73,7 @@ static const struct hid_blacklist {
 	{ USB_VENDOR_ID_CH, USB_DEVICE_ID_CH_AXIS_295, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_CHICONY, USB_DEVICE_ID_CHICONY_PIXART_USB_OPTICAL_MOUSE, HID_QUIRK_ALWAYS_POLL },
 	{ USB_VENDOR_ID_CREATIVELABS, USB_DEVICE_ID_CREATIVE_SB_OMNI_SURROUND_51, HID_QUIRK_NOGET },
+	{ USB_VENDOR_ID_DELL, USB_DEVICE_ID_DELL_PIXART_USB_OPTICAL_MOUSE, HID_QUIRK_ALWAYS_POLL },
 	{ USB_VENDOR_ID_DMI, USB_DEVICE_ID_DMI_ENC, HID_QUIRK_NOGET },
 	{ USB_VENDOR_ID_DRAGONRISE, USB_DEVICE_ID_DRAGONRISE_WIIU, HID_QUIRK_MULTI_INPUT },
 	{ USB_VENDOR_ID_ELAN, HID_ANY_ID, HID_QUIRK_ALWAYS_POLL },
@@ -339,7 +341,7 @@ static const struct hid_blacklist *usbhid_exists_squirk(const u16 idVendor,
 	for (; hid_blacklist[n].idVendor; n++)
 		if (hid_blacklist[n].idVendor == idVendor &&
 			(hid_blacklist[n].idProduct == (__u16) HID_ANY_ID ||
-				hid_blacklist[n].idProduct == idProduct))
+				hid_blacklist[n].idProduct & idProduct))
 			bl_entry = &hid_blacklist[n];
 
 	if (bl_entry != NULL)

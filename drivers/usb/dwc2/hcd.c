@@ -1526,11 +1526,20 @@ static void dwc2_hc_start_transfer(struct dwc2_hsotg *hsotg,
 	}
 
 	if (hsotg->params.host_dma) {
-		dwc2_writel((u32)chan->xfer_dma,
-			    hsotg->regs + HCDMA(chan->hc_num));
+		dma_addr_t dma_addr;
+
+		if (chan->align_buf) {
+			if (dbg_hc(chan))
+				dev_vdbg(hsotg->dev, "align_buf\n");
+			dma_addr = chan->align_buf;
+		} else {
+			dma_addr = chan->xfer_dma;
+		}
+		dwc2_writel((u32)dma_addr, hsotg->regs + HCDMA(chan->hc_num));
+
 		if (dbg_hc(chan))
 			dev_vdbg(hsotg->dev, "Wrote %08lx to HCDMA(%d)\n",
-				 (unsigned long)chan->xfer_dma, chan->hc_num);
+				 (unsigned long)dma_addr, chan->hc_num);
 	}
 
 	/* Start the split */
@@ -2592,36 +2601,60 @@ static void dwc2_hc_init_xfer(struct dwc2_hsotg *hsotg,
 	}
 }
 
-#define DWC2_USB_DMA_ALIGN 4
+static int dwc2_alloc_split_dma_aligned_buf(struct dwc2_hsotg *hsotg,
+					    struct dwc2_qh *qh,
+					    struct dwc2_host_chan *chan)
+{
+	if (!hsotg->unaligned_cache ||
+	    chan->max_packet > DWC2_KMEM_UNALIGNED_BUF_SIZE)
+		return -ENOMEM;
 
-struct dma_aligned_buffer {
-	void *kmalloc_ptr;
-	void *old_xfer_buffer;
-	u8 data[0];
-};
+	if (!qh->dw_align_buf) {
+		qh->dw_align_buf = kmem_cache_alloc(hsotg->unaligned_cache,
+						    GFP_ATOMIC | GFP_DMA);
+		if (!qh->dw_align_buf)
+			return -ENOMEM;
+	}
+
+	qh->dw_align_buf_dma = dma_map_single(hsotg->dev, qh->dw_align_buf,
+					      DWC2_KMEM_UNALIGNED_BUF_SIZE,
+					      DMA_FROM_DEVICE);
+
+	if (dma_mapping_error(hsotg->dev, qh->dw_align_buf_dma)) {
+		dev_err(hsotg->dev, "can't map align_buf\n");
+		chan->align_buf = 0;
+		return -EINVAL;
+	}
+
+	chan->align_buf = qh->dw_align_buf_dma;
+	return 0;
+}
+
+#define DWC2_USB_DMA_ALIGN 4
 
 static void dwc2_free_dma_aligned_buffer(struct urb *urb)
 {
-	struct dma_aligned_buffer *temp;
+	void *stored_xfer_buffer;
 
 	if (!(urb->transfer_flags & URB_ALIGNED_TEMP_BUFFER))
 		return;
 
-	temp = container_of(urb->transfer_buffer,
-			    struct dma_aligned_buffer, data);
+	/* Restore urb->transfer_buffer from the end of the allocated area */
+	memcpy(&stored_xfer_buffer, urb->transfer_buffer +
+	       urb->transfer_buffer_length, sizeof(urb->transfer_buffer));
 
 	if (usb_urb_dir_in(urb))
-		memcpy(temp->old_xfer_buffer, temp->data,
+		memcpy(stored_xfer_buffer, urb->transfer_buffer,
 		       urb->transfer_buffer_length);
-	urb->transfer_buffer = temp->old_xfer_buffer;
-	kfree(temp->kmalloc_ptr);
+	kfree(urb->transfer_buffer);
+	urb->transfer_buffer = stored_xfer_buffer;
 
 	urb->transfer_flags &= ~URB_ALIGNED_TEMP_BUFFER;
 }
 
 static int dwc2_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
 {
-	struct dma_aligned_buffer *temp, *kmalloc_ptr;
+	void *kmalloc_ptr;
 	size_t kmalloc_size;
 
 	if (urb->num_sgs || urb->sg ||
@@ -2629,22 +2662,29 @@ static int dwc2_alloc_dma_aligned_buffer(struct urb *urb, gfp_t mem_flags)
 	    !((uintptr_t)urb->transfer_buffer & (DWC2_USB_DMA_ALIGN - 1)))
 		return 0;
 
-	/* Allocate a buffer with enough padding for alignment */
+	/*
+	 * Allocate a buffer with enough padding for original transfer_buffer
+	 * pointer. This allocation is guaranteed to be aligned properly for
+	 * DMA
+	 */
 	kmalloc_size = urb->transfer_buffer_length +
-		sizeof(struct dma_aligned_buffer) + DWC2_USB_DMA_ALIGN - 1;
+		sizeof(urb->transfer_buffer);
 
 	kmalloc_ptr = kmalloc(kmalloc_size, mem_flags);
 	if (!kmalloc_ptr)
 		return -ENOMEM;
 
-	/* Position our struct dma_aligned_buffer such that data is aligned */
-	temp = PTR_ALIGN(kmalloc_ptr + 1, DWC2_USB_DMA_ALIGN) - 1;
-	temp->kmalloc_ptr = kmalloc_ptr;
-	temp->old_xfer_buffer = urb->transfer_buffer;
+	/*
+	 * Position value of original urb->transfer_buffer pointer to the end
+	 * of allocation for later referencing
+	 */
+	memcpy(kmalloc_ptr + urb->transfer_buffer_length,
+	       &urb->transfer_buffer, sizeof(urb->transfer_buffer));
+
 	if (usb_urb_dir_out(urb))
-		memcpy(temp->data, urb->transfer_buffer,
+		memcpy(kmalloc_ptr, urb->transfer_buffer,
 		       urb->transfer_buffer_length);
-	urb->transfer_buffer = temp->data;
+	urb->transfer_buffer = kmalloc_ptr;
 
 	urb->transfer_flags |= URB_ALIGNED_TEMP_BUFFER;
 
@@ -2768,6 +2808,32 @@ static int dwc2_assign_and_init_hc(struct dwc2_hsotg *hsotg, struct dwc2_qh *qh)
 
 	/* Set the transfer attributes */
 	dwc2_hc_init_xfer(hsotg, chan, qtd);
+
+	/* For non-dword aligned buffers */
+	if (hsotg->params.host_dma && qh->do_split &&
+	    chan->ep_is_in && (chan->xfer_dma & 0x3)) {
+		dev_vdbg(hsotg->dev, "Non-aligned buffer\n");
+		if (dwc2_alloc_split_dma_aligned_buf(hsotg, qh, chan)) {
+			dev_err(hsotg->dev,
+				"Failed to allocate memory to handle non-aligned buffer\n");
+			/* Add channel back to free list */
+			chan->align_buf = 0;
+			chan->multi_count = 0;
+			list_add_tail(&chan->hc_list_entry,
+				      &hsotg->free_hc_list);
+			qtd->in_process = 0;
+			qh->channel = NULL;
+			return -ENOMEM;
+		}
+	} else {
+		/*
+		 * We assume that DMA is always aligned in non-split
+		 * case or split out case. Warn if not.
+		 */
+		WARN_ON_ONCE(hsotg->params.host_dma &&
+			     (chan->xfer_dma & 0x3));
+		chan->align_buf = 0;
+	}
 
 	if (chan->ep_type == USB_ENDPOINT_XFER_INT ||
 	    chan->ep_type == USB_ENDPOINT_XFER_ISOC)
@@ -3261,6 +3327,125 @@ void dwc2_hcd_queue_transactions(struct dwc2_hsotg *hsotg,
 		}
 	}
 }
+
+static ssize_t sel_dr_mode_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	enum usb_dr_mode mode;
+
+	mode = usb_get_dr_mode(dev);
+
+	if (mode == USB_DR_MODE_HOST)
+		return sprintf(buf, "%s", "host\n");
+	else if (mode == USB_DR_MODE_PERIPHERAL)
+		return sprintf(buf, "%s", "device\n");
+	else
+		return sprintf(buf, "%s", "otg\n");
+}
+
+static ssize_t sel_dr_mode_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct dwc2_hsotg *hsotg = dev_get_drvdata(dev);
+	unsigned long flags;
+
+	if (!strncmp(buf, "host", 4)) {
+		spin_lock(&hsotg->lock);
+		dwc2_hsotg_disconnect(hsotg);
+		spin_unlock(&hsotg->lock);
+		hsotg->dr_mode = USB_DR_MODE_HOST;
+		dwc2_core_reset_and_force_dr_mode(hsotg);
+		dev_dbg(hsotg->dev, "set dr mode to host\n");
+
+		/* A-Device connector (Host Mode) */
+		dev_dbg(hsotg->dev, "connId A\n");
+		hsotg->op_state = OTG_STATE_A_HOST;
+
+		/* Initialize the Core for Host mode */
+		dwc2_core_init(hsotg, false);
+		dwc2_enable_global_interrupts(hsotg);
+		dwc2_hcd_start(hsotg);
+	} else if (!strncmp(buf, "device", 5)) {
+		dwc2_hcd_disconnect(hsotg, true);
+		hsotg->dr_mode = USB_DR_MODE_PERIPHERAL;
+		dwc2_core_reset_and_force_dr_mode(hsotg);
+		if (hsotg->bus_suspended) {
+			dev_info(hsotg->dev,
+				 "Do port resume before switching to device mode\n");
+			dwc2_port_resume(hsotg);
+		}
+		hsotg->op_state = OTG_STATE_B_PERIPHERAL;
+		dwc2_core_init(hsotg, false);
+		dwc2_enable_global_interrupts(hsotg);
+		spin_lock_irqsave(&hsotg->lock, flags);
+		dwc2_hsotg_disconnect(hsotg);
+		dwc2_hsotg_core_init_disconnected(hsotg, false);
+		dwc2_hsotg_core_connect(hsotg);
+		spin_unlock_irqrestore(&hsotg->lock, flags);
+		dev_dbg(hsotg->dev, " set dr mode to device\n");
+	} else {
+		hsotg->dr_mode = USB_DR_MODE_OTG;
+		dwc2_core_reset_and_force_dr_mode(hsotg);
+		dev_dbg(hsotg->dev, " set dr mode to otg\n");
+	}
+
+	return count;
+}
+
+DEVICE_ATTR(sel_dr_mode, S_IRUGO|S_IWUSR, sel_dr_mode_show, sel_dr_mode_store);
+
+static ssize_t h_ddma_en_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct dwc2_hsotg *hsotg = dev_get_drvdata(dev);
+
+	if (hsotg->params.dma_desc_enable)
+		return sprintf(buf, "%d\n", 1);
+	else
+		return sprintf(buf, "%d\n", 0);
+}
+
+static ssize_t h_ddma_en_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	struct dwc2_hsotg *hsotg = dev_get_drvdata(dev);
+
+	if (dwc2_is_device_mode(hsotg)) {
+		if (!strncmp(buf, "1", 1))
+			hsotg->params.dma_desc_enable = true;
+		else if (!strncmp(buf, "0", 1))
+			hsotg->params.dma_desc_enable = false;
+		else
+			dev_err(hsotg->dev, "invaild argument\n");
+	} else {
+		if (!hsotg->params.dma_desc_enable &&
+		    !strncmp(buf, "1", 1)) {
+			dwc2_hcd_disconnect(hsotg, true);
+
+			hsotg->params.dma_desc_enable = true;
+			/* Initialize the Core for Host mode */
+			dwc2_core_init(hsotg, false);
+			dwc2_enable_global_interrupts(hsotg);
+			dwc2_hcd_start(hsotg);
+		} else if (hsotg->params.dma_desc_enable &&
+			   !strncmp(buf, "0", 1)) {
+			dwc2_hcd_disconnect(hsotg, true);
+
+			hsotg->params.dma_desc_enable = false;
+			/* Initialize the Core for Host mode */
+			dwc2_core_init(hsotg, false);
+			dwc2_enable_global_interrupts(hsotg);
+			dwc2_hcd_start(hsotg);
+		} else
+			dev_err(hsotg->dev, "invaild argument\n");
+	}
+
+	return count;
+}
+
+DEVICE_ATTR(h_ddma_en, S_IRUGO|S_IWUSR, h_ddma_en_show, h_ddma_en_store);
 
 static void dwc2_conn_id_status_change(struct work_struct *work)
 {
@@ -4416,99 +4601,15 @@ static void _dwc2_hcd_stop(struct usb_hcd *hcd)
 
 	usleep_range(1000, 3000);
 }
+
 #if defined(CONFIG_PM) && (defined(CONFIG_ARCH_S5P4418) || \
 	defined(CONFIG_ARCH_S5P6818))
-struct dwc2_core_global_regs {
-	uint32_t gotgctl;
-	uint32_t gotgint;
-	uint32_t gahbcfg;
-	uint32_t gusbcfg;
-	uint32_t grstctl;
-	uint32_t gintmsk;
-	uint32_t grxfsiz;
-	uint32_t gnptxfsiz;
-	uint32_t gi2cctl;
-	uint32_t gpvndctl;
-	uint32_t ggpio;
-	uint32_t ghwcfg1;
-	uint32_t ghwcfg2;
-	uint32_t ghwcfg3;
-	uint32_t ghwcfg4;
-	uint32_t glpmcfg;
-	uint32_t gpwrdn;
-	uint32_t gdfifocfg;
-	uint32_t adpctl;
-	uint32_t hptxfsiz;
-	uint32_t dtxfsiz[15];
-};
-
-static struct dwc2_core_global_regs save_global_regs;
-
-static void dwc2_driver_suspend_regs(struct dwc2_hsotg *hsotg, int suspend)
-{
-	struct dwc2_core_global_regs *regs = &save_global_regs;
-	int idx;
-
-	dev_dbg(hsotg->dev, "%s %d suspend %d\n", __func__, __LINE__, suspend);
-
-	if (suspend) {
-		regs->gotgctl = readl(hsotg->regs + GOTGCTL);
-		regs->gotgint = readl(hsotg->regs + GOTGINT);
-		regs->gahbcfg = readl(hsotg->regs + GAHBCFG);
-		regs->gusbcfg = readl(hsotg->regs + GUSBCFG);
-		regs->grstctl = readl(hsotg->regs + GRSTCTL);
-		regs->gintmsk = readl(hsotg->regs + GINTMSK);
-		regs->grxfsiz = readl(hsotg->regs + GRXFSIZ);
-		regs->gnptxfsiz = readl(hsotg->regs + GNPTXFSIZ);
-		regs->gi2cctl = readl(hsotg->regs + GI2CCTL);
-		regs->gpvndctl = readl(hsotg->regs + GPVNDCTL);
-		regs->ggpio = readl(hsotg->regs + GGPIO);
-		regs->ghwcfg1 = readl(hsotg->regs + GHWCFG1);
-		regs->ghwcfg2 = readl(hsotg->regs + GHWCFG2);
-		regs->ghwcfg3 = readl(hsotg->regs + GHWCFG3);
-		regs->ghwcfg4 = readl(hsotg->regs + GHWCFG4);
-		regs->glpmcfg = readl(hsotg->regs + GLPMCFG);
-		regs->gpwrdn = readl(hsotg->regs + GPWRDN);
-		regs->gdfifocfg = readl(hsotg->regs + GDFIFOCFG);
-		regs->adpctl = readl(hsotg->regs + ADPCTL);
-		regs->hptxfsiz = readl(hsotg->regs + HPTXFSIZ);
-		for (idx = 1; idx < hsotg->num_of_eps; idx++)
-			regs->dtxfsiz[idx] = readl(hsotg->regs +
-						   DPTXFSIZN(idx));
-	} else {
-		writel(regs->gotgctl, hsotg->regs + GOTGCTL);
-		writel(regs->gotgint, hsotg->regs + GOTGINT);
-		writel(regs->gahbcfg, hsotg->regs + GAHBCFG);
-		writel(regs->gusbcfg, hsotg->regs + GUSBCFG);
-		writel(regs->grstctl, hsotg->regs + GRSTCTL);
-		writel(regs->gintmsk, hsotg->regs + GINTMSK);
-		writel(regs->grxfsiz, hsotg->regs + GRXFSIZ);
-		writel(regs->gnptxfsiz, hsotg->regs + GNPTXFSIZ);
-		writel(regs->gi2cctl, hsotg->regs + GI2CCTL);
-		writel(regs->gpvndctl, hsotg->regs + GPVNDCTL);
-		writel(regs->ggpio, hsotg->regs + GGPIO);
-		writel(regs->ghwcfg1, hsotg->regs + GHWCFG1);
-		writel(regs->ghwcfg2, hsotg->regs + GHWCFG2);
-		writel(regs->ghwcfg3, hsotg->regs + GHWCFG3);
-		writel(regs->ghwcfg4, hsotg->regs + GHWCFG4);
-		writel(regs->glpmcfg, hsotg->regs + GLPMCFG);
-		writel(regs->gpwrdn, hsotg->regs + GPWRDN);
-		writel(regs->gdfifocfg, hsotg->regs + GDFIFOCFG);
-		writel(regs->adpctl, hsotg->regs + ADPCTL);
-		writel(regs->hptxfsiz, hsotg->regs + HPTXFSIZ);
-		for (idx = 1; idx < hsotg->num_of_eps; idx++)
-			writel(regs->dtxfsiz[idx], hsotg->regs +
-			       DPTXFSIZN(idx));
-	}
-}
 
 static int _dwc2_hcd_suspend(struct usb_hcd *hcd)
 {
 	struct dwc2_hsotg *hsotg = dwc2_hcd_to_hsotg(hcd);
 
 	dev_dbg(hsotg->dev, "%s %d\n", __func__, __LINE__);
-
-	dwc2_driver_suspend_regs(hsotg, 1);
 
 	if (hsotg->op_state == OTG_STATE_B_PERIPHERAL) {
 		dev_warn(hsotg->dev, "%s, usb device mode\n", __func__);
@@ -4537,8 +4638,6 @@ static int _dwc2_hcd_resume(struct usb_hcd *hcd)
 	u32 gotgctl;
 
 	dev_dbg(hsotg->dev, "%s %d\n", __func__, __LINE__);
-
-	dwc2_driver_suspend_regs(hsotg, 0);
 
 	if (hsotg->op_state == OTG_STATE_B_PERIPHERAL) {
 		dev_warn(hsotg->dev, "%s, usb device mode\n", __func__);
@@ -5433,6 +5532,19 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 		}
 	}
 
+	if (hsotg->params.host_dma) {
+		/*
+		 * Create kmem caches to handle non-aligned buffer
+		 * in Buffer DMA mode.
+		 */
+		hsotg->unaligned_cache = kmem_cache_create("dwc2-unaligned-dma",
+						DWC2_KMEM_UNALIGNED_BUF_SIZE, 4,
+						SLAB_CACHE_DMA, NULL);
+		if (!hsotg->unaligned_cache)
+			dev_err(hsotg->dev,
+				"unable to create dwc2 unaligned cache\n");
+	}
+
 	hsotg->otg_port = 1;
 	hsotg->frame_list = NULL;
 	hsotg->frame_list_dma = 0;
@@ -5468,12 +5580,21 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 	defined(CONFIG_ARCH_S5P6818))
 	pm_runtime_forbid(&hcd->self.root_hub->dev);
 #endif
+	if (of_device_is_compatible(hsotg->dev->of_node,
+				    "nexell,nexell-dwc2otg")) {
+		device_property_read_u32(hsotg->dev, "nouse_idcon",
+					 &hsotg->nouse_idcon);
+		if (hsotg->nouse_idcon)
+			device_create_file(hsotg->dev, &dev_attr_sel_dr_mode);
+		device_create_file(hsotg->dev, &dev_attr_h_ddma_en);
+	}
 
 	return 0;
 
 error4:
-	kmem_cache_destroy(hsotg->desc_gen_cache);
+	kmem_cache_destroy(hsotg->unaligned_cache);
 	kmem_cache_destroy(hsotg->desc_hsisoc_cache);
+	kmem_cache_destroy(hsotg->desc_gen_cache);
 error3:
 	dwc2_hcd_release(hsotg);
 error2:
@@ -5514,8 +5635,9 @@ void dwc2_hcd_remove(struct dwc2_hsotg *hsotg)
 	usb_remove_hcd(hcd);
 	hsotg->priv = NULL;
 
-	kmem_cache_destroy(hsotg->desc_gen_cache);
+	kmem_cache_destroy(hsotg->unaligned_cache);
 	kmem_cache_destroy(hsotg->desc_hsisoc_cache);
+	kmem_cache_destroy(hsotg->desc_gen_cache);
 
 	dwc2_hcd_release(hsotg);
 	usb_put_hcd(hcd);

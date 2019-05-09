@@ -325,6 +325,12 @@ static int usb_probe_interface(struct device *dev)
 	if (driver->supports_autosuspend)
 		pm_runtime_enable(dev);
 
+#if (defined(CONFIG_ARCH_S5P4418) || defined(CONFIG_ARCH_S5P6818))
+	/* S5S4418and S5P6818 Soc can not use autosuspend
+	 * because EHCI and HSIC share same PHY.
+	 */
+	pm_runtime_forbid(dev);
+#endif
 	/* If the new driver doesn't allow hub-initiated LPM, and we can't
 	 * disable hub-initiated LPM, then fail the probe.
 	 *
@@ -1328,6 +1334,24 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 		 */
 		if (udev->parent && !PMSG_IS_AUTO(msg))
 			status = 0;
+
+		/*
+		 * If the device is inaccessible, don't try to resume
+		 * suspended interfaces and just return the error.
+		 */
+		if (status && status != -EBUSY) {
+			int err;
+			u16 devstat;
+
+			err = usb_get_status(udev, USB_RECIP_DEVICE, 0,
+					     &devstat);
+			if (err) {
+				dev_err(&udev->dev,
+					"Failed to suspend device, error %d\n",
+					status);
+				goto done;
+			}
+		}
 	}
 
 	/* If the suspend failed, resume interfaces that did get suspended */
@@ -1759,6 +1783,9 @@ static int autosuspend_check(struct usb_device *udev)
 {
 	int			w, i;
 	struct usb_interface	*intf;
+
+	if (udev->state == USB_STATE_NOTATTACHED)
+		return -ENODEV;
 
 	/* Fail if autosuspend is disabled, or any interfaces are in use, or
 	 * any interface drivers require remote wakeup but it isn't available.

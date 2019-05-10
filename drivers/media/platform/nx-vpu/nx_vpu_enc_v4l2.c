@@ -530,6 +530,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 		ctx->strm_buf_size = pix_fmt_mp->plane_fmt[0].sizeimage;
 		pix_fmt_mp->plane_fmt[0].bytesperline = 0;
 		ret = nx_vpu_try_run(ctx);
+
 	} else if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
 		struct vpu_enc_ctx *enc_ctx = &ctx->codec.enc;
 
@@ -549,7 +550,16 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 
 		ctx->luma_size = f->fmt.pix_mp.plane_fmt[0].sizeimage;
 		ctx->buf_y_width = f->fmt.pix_mp.plane_fmt[0].bytesperline;
-		ctx->buf_height = ctx->luma_size / ctx->buf_y_width;
+
+		if (!ctx->buf_y_width) {
+			ctx->buf_y_width = ALIGN(ctx->width, 32);
+		}
+		if (!ctx->luma_size) {
+			ctx->buf_height = ALIGN(ctx->height, 16);
+			ctx->luma_size = ctx->buf_y_width * ctx->buf_height;
+		} else {
+			ctx->buf_height = ctx->luma_size / ctx->buf_y_width;
+		}
 
 		if (1 < ctx->img_fmt.num_planes) {
 			ctx->chroma_size = f->fmt.pix_mp.plane_fmt[1].sizeimage;

@@ -1225,6 +1225,9 @@ static struct drm_dp_mst_branch *drm_dp_get_mst_branch_device(struct drm_dp_mst_
 	mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
 
+	if (!mstb)
+		goto out;
+
 	for (i = 0; i < lct - 1; i++) {
 		int shift = (i % 2) ? 0 : 4;
 		int port_num = (rad[i / 2] >> shift) & 0xf;
@@ -1802,6 +1805,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 				return -EINVAL;
 			}
 			req_payload.num_slots = mgr->proposed_vcpis[i]->num_slots;
+			req_payload.vcpi = mgr->proposed_vcpis[i]->vcpi;
 		} else {
 			port = NULL;
 			req_payload.num_slots = 0;
@@ -1817,6 +1821,7 @@ int drm_dp_update_payload_part1(struct drm_dp_mst_topology_mgr *mgr)
 			if (req_payload.num_slots) {
 				drm_dp_create_payload_step1(mgr, mgr->proposed_vcpis[i]->vcpi, &req_payload);
 				mgr->payloads[i].num_slots = req_payload.num_slots;
+				mgr->payloads[i].vcpi = req_payload.vcpi;
 			} else if (mgr->payloads[i].num_slots) {
 				mgr->payloads[i].num_slots = 0;
 				drm_dp_destroy_payload_step1(mgr, port, mgr->payloads[i].vcpi, &mgr->payloads[i]);

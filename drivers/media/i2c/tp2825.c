@@ -49,14 +49,14 @@ static struct nx_resolution supported_resolutions[] = {
 	{
 		.width	= 960,
 		.height = 576,
-		.interval[0] = 25,
+		.interval[0] = 15,
 		.interval[1] = 30,
 	},
 // NTSC960_480i
 	{
 		.width	= 960,
 		.height = 480,
-		.interval[0] = 25,
+		.interval[0] = 15,
 		.interval[1] = 30,
 	},
 #endif
@@ -64,7 +64,7 @@ static struct nx_resolution supported_resolutions[] = {
 	{
 		.width	= 1280,
 		.height = 720,
-		.interval[0] = 25,
+		.interval[0] = 15,
 		.interval[1] = 30,
 	}
 };

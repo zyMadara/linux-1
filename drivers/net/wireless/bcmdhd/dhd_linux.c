@@ -9756,6 +9756,10 @@ dhd_module_init(void)
 
 	DHD_ERROR(("%s in\n", __FUNCTION__));
 
+#if defined(CONFIG_BCM4343_MODULE)
+	dhd_download_fw_on_driverload = FALSE;
+#endif
+
 #if defined(DHD_OF_SUPPORT)
 	err = dhd_wlan_init();
 	if (err) {
@@ -9797,6 +9801,14 @@ dhd_module_init(void)
 
 	if (err) {
 		DHD_ERROR(("%s: Failed to load driver max retry reached**\n", __FUNCTION__));
+
+		/* cleanup */
+		unregister_reboot_notifier(&dhd_reboot_notifier);
+		dhd_buzzz_detach();
+#if defined(DHD_OF_SUPPORT)
+		dhd_wlan_exit();
+#endif
+
 	} else {
 		if (!dhd_download_fw_on_driverload) {
 			dhd_driver_init_done = TRUE;

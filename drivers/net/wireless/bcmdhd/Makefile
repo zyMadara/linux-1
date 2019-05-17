@@ -827,8 +827,8 @@ ifeq ($(CONFIG_WL_NAN),y)
 DHDOFILES += wl_cfgnan.o bcmxtlv.o
 endif
 
-dhd-y := $(DHDOFILES)
-obj-$(DRIVER_TYPE)   += dhd.o
+bcmdhd-y := $(DHDOFILES)
+obj-$(DRIVER_TYPE)   += bcmdhd.o
 
 all:
 	@echo "$(MAKE) --no-print-directory -C $(KDIR) SUBDIRS=$(CURDIR) modules"

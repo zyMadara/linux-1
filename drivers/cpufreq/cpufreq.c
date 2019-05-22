@@ -526,6 +526,10 @@ EXPORT_SYMBOL_GPL(cpufreq_driver_resolve_freq);
 
 unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy)
 {
+#ifdef CONFIG_MACH_SUN8I
+#define SUNXI_FREQTRANS_LATENCY     (2000000)       /* config the transition latency, based on ns */
+	return SUNXI_FREQTRANS_LATENCY;
+#else
 	unsigned int latency;
 
 	if (policy->transition_delay_us)
@@ -547,6 +551,7 @@ unsigned int cpufreq_policy_transition_delay_us(struct cpufreq_policy *policy)
 	}
 
 	return LATENCY_MULTIPLIER;
+#endif
 }
 EXPORT_SYMBOL_GPL(cpufreq_policy_transition_delay_us);
 

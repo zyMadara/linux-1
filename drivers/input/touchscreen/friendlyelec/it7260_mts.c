@@ -80,7 +80,7 @@ static int i2c_master_write_it7260(struct i2c_client *client,
 		unsigned char buf_index, unsigned char const *buf_data,
 		unsigned short len_data)
 {
-	unsigned char buf[2];
+	unsigned char buf[4];
 	int ret;
 
 	struct i2c_msg msgs[1] = {

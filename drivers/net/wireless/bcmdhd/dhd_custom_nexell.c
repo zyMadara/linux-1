@@ -257,7 +257,7 @@ fail:
 	return ret;
 }
 
-void __exit dhd_wlan_exit(void)
+void dhd_wlan_exit(void)
 {
 	gpio_free(wlan_pwr_on);
 	gpio_free(wlan_host_wake_up);

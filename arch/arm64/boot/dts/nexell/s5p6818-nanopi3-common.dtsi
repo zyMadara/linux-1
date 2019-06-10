@@ -782,7 +782,7 @@
 	port = <0>;
 	external_sync = <0>;
 	interlace = <0>;
-	status = "okay";
+	status = "disabled";
 
 	sensor {
 		type = <NX_CAPTURE_SENSOR_I2C>;
@@ -877,9 +877,3 @@
 		};
 	};
 };
-
-/*
-&decimator_0 {
-	status = "okay";
-};
-*/

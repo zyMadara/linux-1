@@ -581,7 +581,9 @@ static int panel_setup_lcd(char *str)
 			if (!strcasecmp(cfg->name, str)) {
 				lcd->width = cfg->width;
 				lcd->height = cfg->height;
+#ifndef CONFIG_MACH_ANDROID_BUILD
 				lcd_connected = false;
+#endif
 				goto __ret;
 			}
 		}

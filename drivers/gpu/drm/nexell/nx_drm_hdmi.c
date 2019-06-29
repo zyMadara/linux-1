@@ -330,13 +330,16 @@ static int panel_hdmi_bind(struct device *dev,
 		if (hdmi_ops->is_connected(display)) {
 			DRM_INFO("HDMI %s connected, LCD %s\n",
 				ctx->skip_boot_connect ? "Skip" : "Check",
-				private->force_detect ? "connected" :
-				"not connected");
+				private->force_detect ? "connected" : "not connected");
 
+#ifdef CONFIG_MACH_ANDROID_BUILD
+			ctx->plug = hdmi_ops->is_connected(display);
+#else
 			if (!ctx->skip_boot_connect || !private->force_detect) {
 				ctx->plug = hdmi_ops->is_connected(display);
 				private->force_detect = true;
 			}
+#endif
 
 #if defined(CONFIG_DRM_PANEL_FRIENDLYELEC)
 		} else if (!panel_is_lcd_connected()) {

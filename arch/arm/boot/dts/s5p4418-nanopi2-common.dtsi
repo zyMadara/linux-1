@@ -474,6 +474,14 @@
 				goodix,irq-gpio = <&gpio_c 16 0>;
 			};
 
+			goodix_ts@14 {
+				compatible = "goodix,gt9xx";
+				reg = <0x14>;
+				interrupt-parent = <&gpio_c>;
+				interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+				goodix,irq-gpio = <&gpio_c 16 0>;
+			};
+
 			hx8528a_ts@48 {
 				compatible = "himax,hx8528-a";
 				reg = <0x48>;

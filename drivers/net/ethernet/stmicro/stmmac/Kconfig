@@ -165,6 +165,14 @@ config DWMAC_SUN8I
 	  This selects Allwinner SoC glue layer support for the
 	  stmmac device driver. This driver is used for H3/A83T/A64
 	  EMAC ethernet controller.
+
+config DWMAC_SUN8I_THREAD_IRQ
+	tristate "Allwinner sun8i GMAC thread irq handler support"
+	default n
+	depends on OF && (ARCH_SUNXI || COMPILE_TEST) && DWMAC_SUN8I
+	---help---
+	  Support for Allwinner H3 A83T A64 EMAC thread irq handler
+
 endif
 
 config STMMAC_PCI

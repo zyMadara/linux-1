@@ -2630,8 +2630,14 @@ static int stmmac_open(struct net_device *dev)
 		phy_start(dev->phydev);
 
 	/* Request the IRQ lines */
+#ifdef CONFIG_DWMAC_SUN8I_THREAD_IRQ
+	ret = request_threaded_irq(dev->irq,
+			  NULL, stmmac_interrupt,
+			  IRQF_SHARED | IRQF_ONESHOT, dev->name, dev);
+#else
 	ret = request_irq(dev->irq, stmmac_interrupt,
 			  IRQF_SHARED, dev->name, dev);
+#endif
 	if (unlikely(ret < 0)) {
 		netdev_err(priv->dev,
 			   "%s: ERROR: allocating the IRQ %d (error: %d)\n",

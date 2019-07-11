@@ -95,7 +95,7 @@
 		pinctrl-0 = <&leds_npi>, <&leds_r_npi>;
 
 		status {
-			label = "nanopi:blue:status";
+			label = "status_led";
 			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};

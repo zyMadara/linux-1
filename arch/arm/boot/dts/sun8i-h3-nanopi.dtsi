@@ -101,7 +101,7 @@
 		};
 
 		pwr {
-			label = "nanopi:green:pwr";
+			label = "LED2";
 			gpios = <&r_pio 0 10 GPIO_ACTIVE_HIGH>;
 			default-state = "on";
 		};

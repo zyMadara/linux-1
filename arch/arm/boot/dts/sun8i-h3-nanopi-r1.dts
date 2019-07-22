@@ -80,8 +80,8 @@
 	leds {
 		/delete-node/ status;
 		/delete-node/ pwr;
-		led1 {
-			label = "LED1";
+		status {
+			label = "status_led";
 			gpios = <&pio 0 10 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 		};

@@ -413,6 +413,7 @@
 		buswidth = <8>;
 		dc-gpios = <&pio 0 1 GPIO_ACTIVE_HIGH>;	 /* PA1 */
 		reset-gpios = <&pio 6 11 GPIO_ACTIVE_HIGH>; /* PG11 */
+		led-gpios = <&pio 0 0 GPIO_ACTIVE_LOW>;	 /* PA0 */
 		debug = <0x0>;
 	};
 

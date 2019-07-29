@@ -184,8 +184,6 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 	int i;
 	int j;
 	int c; /* curve index offset */
-	int bl_pin = 0;	// PA0
-	static int bl_enable = 0;
 
 	/*
 	 * Bitmasks for gamma curve command parameters.
@@ -220,15 +218,6 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 			curves[c + 6], curves[c + 7], curves[c + 8],
 			curves[c + 9], curves[c + 10], curves[c + 11],
 			curves[c + 12], curves[c + 13]);
-	}
-	if (bl_enable == 0) {
-		if (gpio_is_valid(bl_pin)) {
-			if (!gpio_request(bl_pin, "matrix-2.8-tft-backlight")) {
-				gpio_direction_output(bl_pin, 1);
-				gpio_free(bl_pin);
-				bl_enable = 1;
-			}
-		}
 	}
 	return 0;
 }

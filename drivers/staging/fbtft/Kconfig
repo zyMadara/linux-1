@@ -9,6 +9,12 @@ menuconfig FB_TFT
 	select FB_DEFERRED_IO
 	select FB_BACKLIGHT
 
+config FB_TFT_SYS
+	tristate "Support sysfs for small TFT LCD display modules"
+	depends on FB_TFT
+	help
+	  Sysfs support for Support sysfs for small TFT LCD display modules
+
 config FB_TFT_AGM1264K_FL
 	tristate "FB driver for the AGM1264K-FL LCD display"
 	depends on FB_TFT

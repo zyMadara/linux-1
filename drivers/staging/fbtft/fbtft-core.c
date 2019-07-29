@@ -1317,6 +1317,39 @@ static struct fbtft_platform_data *fbtft_probe_dt(struct device *dev)
 }
 #endif
 
+#ifdef CONFIG_FB_TFT_SYS
+static struct fbtft_par *g_par;
+static ssize_t fbtft_reg_store(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	u32 val[4] = {0, };
+	u32 num;
+
+	sscanf(buf, "%d,%x,%x,%x,%x", &num, &val[0], &val[1], &val[2], &val[3]);
+	switch(num) {
+		 case 1:
+		 	write_reg(g_par, val[0]);
+		 	break;
+		 case 2:
+		 	write_reg(g_par, val[0], val[1]);
+		 	break;
+		 case 3:
+		 	write_reg(g_par, val[0], val[1], val[2]);
+		 	break;
+		 case 4:
+		 	write_reg(g_par, val[0], val[1], val[2], val[3]);
+		 	break;
+		default:
+			break;
+	}
+	return count;
+}
+
+static struct device *fbtft_reg_dev;
+static struct class *fbtft_reg_class;
+static DEVICE_ATTR(fbtft_reg, S_IWUSR, NULL, fbtft_reg_store);
+#endif
+
+
 /**
  * fbtft_probe_common() - Generic device probe() helper function
  * @display: Display properties
@@ -1433,6 +1466,19 @@ int fbtft_probe_common(struct fbtft_display *display,
 	ret = fbtft_register_framebuffer(info);
 	if (ret < 0)
 		goto out_release;
+
+#ifdef CONFIG_FB_TFT_SYS
+	g_par = par;
+	fbtft_reg_class = class_create(THIS_MODULE, "fbtft");
+	if (IS_ERR(fbtft_reg_class)) {
+		dev_info(dev,"[%s] failed to class_create fbtft\n", __func__);
+	}
+	fbtft_reg_dev = device_create(fbtft_reg_class, NULL, MKDEV(0, 1), NULL, "dev");
+	ret = device_create_file(fbtft_reg_dev, &dev_attr_fbtft_reg);
+	if (ret < 0) {
+		dev_info(dev,"[%s] failed to device_create_file fbtft\n", __func__);
+	}
+#endif
 
 	return 0;
 

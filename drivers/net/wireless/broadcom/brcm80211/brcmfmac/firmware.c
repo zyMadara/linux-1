@@ -620,8 +620,10 @@ static int brcmf_fw_request_firmware(const struct firmware **fw,
 		strlcpy(alt_path, cur->path, BRCMF_FW_NAME_LEN);
 		/* strip .txt at the end */
 		alt_path[strlen(alt_path) - 4] = 0;
+#if 0
 		strlcat(alt_path, ".", BRCMF_FW_NAME_LEN);
 		strlcat(alt_path, fwctx->req->board_type, BRCMF_FW_NAME_LEN);
+#endif
 		strlcat(alt_path, ".txt", BRCMF_FW_NAME_LEN);
 
 		ret = request_firmware(fw, alt_path, fwctx->dev);

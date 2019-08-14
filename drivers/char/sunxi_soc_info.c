@@ -26,6 +26,8 @@
 #define BOARD_TYPE_NANOPI_M1_PLUS2        (3)       // 11
 #define BOARD_TYPE_NANOPI_K1_PLUS         (4)       // 11-(PG12=0)
 #define BOARD_TYPE_NANOPI_NEO2_V11        (5)       // 01-(PL3=0)
+#define BOARD_TYPE_NANOPI_NEO2_BLACK        (6)       // 01-(PL3=0)
+
 
 static unsigned int sunxi_get_board_vendor_id(void)
 {
@@ -74,6 +76,7 @@ static ssize_t sys_info_show(struct class *class, struct class_attribute *attr,
 	 || !strcasecmp("FriendlyElec NanoPi-NEO2", dt_machine_name) \
 	 || !strcasecmp("FriendlyElec NanoPi-NEO-Plus2", dt_machine_name) \
         || !strcasecmp("FriendlyElec NanoPi-M1-Plus2", dt_machine_name) \
+        || !strcasecmp("FriendlyElec NanoPi-NEO2-Black", dt_machine_name) \
         || !strcasecmp("FriendlyElec NanoPi-K1-Plus", dt_machine_name)) {
         size += sprintf(buf + size, "sunxi_platform    : sun50iw2p1\n");
     } else {
@@ -111,6 +114,8 @@ static ssize_t sys_info_show(struct class *class, struct class_attribute *attr,
         size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_NEO_S);
     else if (!strcasecmp("FriendlyElec ZeroPi", dt_machine_name))
         size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_ZEROPI);
+    else if (!strcasecmp("FriendlyElec NanoPi-NEO2-Black", dt_machine_name))
+        size += sprintf(buf + size, "sunxi_board_id    : %d(0)\n", BOARD_TYPE_NANOPI_NEO2_BLACK);
     else {
         databuf[0] = sunxi_get_board_vendor_id();
         size += sprintf(buf + size, "sunxi_board_id    : %d(%d)\n", (databuf[0]<0)?(-1):(databuf[0]&~(0xe0)), (databuf[0]<0)?(-1):((databuf[0]>>5)&0x01));

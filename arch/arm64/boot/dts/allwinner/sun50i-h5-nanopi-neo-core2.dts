@@ -43,8 +43,8 @@
 #include "sun50i-h5-nanopi.dtsi"
 
 / {
-	model = "FriendlyElec NanoPi-NEO-Core2";
-	compatible = "friendlyelec,nanopi-neo-core2", "allwinner,sun50i-h5";
+	model = "FriendlyElec NanoPi-NEO2-Black";
+	compatible = "friendlyelec,nanopi-neo2-black", "allwinner,sun50i-h5";
 };
 
 &cpu0 {

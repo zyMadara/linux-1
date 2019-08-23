@@ -50,27 +50,15 @@
 &cpu0 {
 	operating-points = <
 		/* kHz	  uV */
-		1368000 1400000
-		1296000 1340000
 		1248000 1280000
-		1224000 1260000
-		1200000 1240000
-		1152000 1200000
-		1104000 1170000
-		1080000 1160000
-		1056000 1150000
 		1008000 1100000
-		960000  1080000
-		936000  1060000
-		912000  1050000
-		864000  1040000
 		816000  1000000
-		672000  970000
+		624000  970000
 		480000  940000
 		>;
 	#cooling-cells = <2>;
 	cooling-min-level = <0>;
-	cooling-max-level = <16>;
+	cooling-max-level = <4>;
 	cpu0-supply = <&vdd_cpu>;
 };
 
@@ -105,15 +93,15 @@
 		};
 		cpu_hot_limit_cpu {
 			trip = <&cpu_hot>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 3>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 2>;
 		};
 		cpu_very_hot_limit_cpu {
 			trip = <&cpu_very_hot>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 5>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 3>;
 		};
 		cpu_crit_limit_cpu {
 			trip = <&cpu_very_hot>;
-			cooling-device = <&cpu0 16 THERMAL_NO_LIMIT>;
+			cooling-device = <&cpu0 4 THERMAL_NO_LIMIT>;
 		};
 	};
 };

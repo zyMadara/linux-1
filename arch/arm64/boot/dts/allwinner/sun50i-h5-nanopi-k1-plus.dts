@@ -140,15 +140,15 @@
 	cooling-maps {
 		cpu_warm_limit_cpu {
 			trip = <&cpu_warm>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 1>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 4>;
 		};
 		cpu_hot_limit_cpu {
 			trip = <&cpu_hot>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 3>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 9>;
 		};
 		cpu_very_hot_limit_cpu {
 			trip = <&cpu_very_hot>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 5>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 14>;
 		};
 		cpu_crit_limit_cpu {
 			trip = <&cpu_very_hot>;

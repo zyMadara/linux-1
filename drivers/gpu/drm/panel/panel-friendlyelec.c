@@ -243,6 +243,32 @@ static struct lcd_desc w35 = {
 	},
 };
 
+static struct lcd_desc w500 = {
+	.width = 800,
+	.height = 480,
+	.p_width = 108,
+	.p_height = 64,
+	.bpp = 24,
+	.freq = 60,
+
+	.timing = {
+		.h_fp = 80,
+		.h_bp = 36,
+		.h_sw = 10,
+		.v_fp = 22,
+		.v_fpe = 1,
+		.v_bp = 15,
+		.v_bpe = 1,
+		.v_sw = 8,
+	},
+	.polarity = {
+		.rise_vclk = 0,
+		.inv_hsync = 1,
+		.inv_vsync = 1,
+		.inv_vden = 0,
+	},
+};
+
 static struct lcd_desc w50 = {
 	.width= 800,
 	.height = 480,
@@ -529,7 +555,7 @@ static struct {
 	{ "HD700",	&hd700,	1 },
 	{ "HD702",	&hd700,	CTP_GOODIX  },
 	{ "H70",	&hd700,	0 },
-	{ "HD900",	&hd900,	CTP_ST1572 },
+	{ "HD900",	&hd900,	CTP_ST1572  },
 	{ "S70",	&s70,	1 },
 	{ "S701",	&s70,	CTP_GOODIX  },
 	{ "S702",	&s702,	1 },
@@ -537,6 +563,7 @@ static struct {
 	{ "S430",	&s430,	CTP_HIMAX   },
 	{ "K101",	&hd101,	CTP_FT5X06  },
 	{ "U101A",	&hd101,	CTP_GOODIX  },
+	{ "W500",	&w500,	CTP_GOODIX  },
 
 	{ "H43",	&h43,	0 },
 	{ "P43",	&p43,	0 },

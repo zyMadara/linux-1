@@ -215,16 +215,14 @@ static irqreturn_t himax_ts_isr(int irq, void *data)
             break;
         }
 #elif defined(CONFIG_TOUCHSCREEN_PROT_MT_SYNC)
-        input_report_abs(input, ABS_MT_TRACKING_ID, i);
         if (now_touched) {
             touch_count++;
+            input_report_abs(input, ABS_MT_TRACKING_ID, i);
             input_report_abs(input, ABS_MT_POSITION_X, x);
             input_report_abs(input, ABS_MT_POSITION_Y, y);
-            input_report_abs(input, ABS_MT_TOUCH_MAJOR, 200);
-        } else {
-            input_report_abs(input, ABS_MT_TOUCH_MAJOR, 0);
+            input_report_abs(input, ABS_MT_TOUCH_MAJOR, 64);
+            input_mt_sync(input);
         }
-        input_mt_sync(input);
 #else
         input_mt_slot(priv->input, i);
         input_mt_report_slot_state(input, MT_TOOL_FINGER, now_touched);

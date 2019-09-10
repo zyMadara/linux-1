@@ -78,6 +78,14 @@
 #if defined(CONFIG_MACH_NANOPI2) || defined(CONFIG_MACH_NANOPI3) || \
 	defined(CONFIG_V4L2_INIT_LEVEL_UP)
 #define NX_CLPPER_INIT_CUSTOM	1
+
+#if defined(CONFIG_MACH_ANDROID_BUILD)
+#define INIT_DELAY_MS	( 2*1000)
+#else
+/* long delay for sensor driver built as module */
+#define INIT_DELAY_MS	(25*1000)
+#endif
+
 struct task_struct *g_ClipperThread;
 #endif
 
@@ -2288,12 +2296,6 @@ static int nx_clipper_probe(struct platform_device *pdev)
 	}
 
 	if (me->module == 0) {
-#if defined(CONFIG_MACH_NANOPI2) || defined(CONFIG_MACH_NANOPI3)
-/* long delay for sensor driver built as module */
-#define INIT_DELAY_MS	(25*1000)
-#else
-#define INIT_DELAY_MS	( 2*1000)
-#endif
 		me->w_queue = create_singlethread_workqueue("clipper_wqueue");
 		INIT_DELAYED_WORK(&me->w_delay, init_clipper_work);
 

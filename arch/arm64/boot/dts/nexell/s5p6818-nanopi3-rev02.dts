@@ -22,6 +22,9 @@
 / {
 	model = "FriendlyElec NanoPi M3B";
 	compatible = "friendlyelec,nanopi-m3b", "nexell,s5p6818";
+
+	/delete-node/ wlan;
+	/delete-node/ bt_bcm;
 };
 
 &mach {

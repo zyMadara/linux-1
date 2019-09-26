@@ -46,21 +46,12 @@
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_nanopi>;
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		startup-delay-us = <100000>;
 		enable-active-high;
 		gpio = <&pio 3 6 GPIO_ACTIVE_HIGH>;
-	};
-};
-
-&pio {
-	gmac_power_pin_nanopi: gmac_power_pin@0 {
-		pins = "PD6";
-		function = "gpio_out";
 	};
 };
 

@@ -123,9 +123,6 @@
 	vdd_cpux: gpio-regulator {
 		compatible = "regulator-gpio";
 
-		pinctrl-names = "default";
-		pinctrl-0 = <&vdd_cpux_r_npi>;
-
 		regulator-name = "vdd-cpux";
 		regulator-type = "voltage";
 		regulator-boot-on;
@@ -319,12 +316,6 @@
 	sw_r_npi: key_pins {
 		pins = "PL3";
 		function = "gpio_in";
-	};
-	vdd_cpux_r_npi: regulator_pins@0 {
-		allwinner,pins = "PL6";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
 	};
 };
 

@@ -118,8 +118,6 @@
 
     reg_gmac_3v3: gmac-3v3 {
         compatible = "regulator-fixed";
-        pinctrl-names = "default";
-        pinctrl-0 = <&gmac_power_pin_nanopi>;
         regulator-name = "gmac-3v3";
         regulator-min-microvolt = <3300000>;
         regulator-max-microvolt = <3300000>;
@@ -219,10 +217,6 @@
         pins = "PA10";
         function = "gpio_out";
     };
-    gmac_power_pin_nanopi: gmac_power_pin@0 {
-        pins = "PD6";
-        function = "gpio_out";
-    };
     spi0_cs_pins: spi0_cs_pins {
         pins = "PC3", "PA6";
         function = "gpio_out";
@@ -233,12 +227,6 @@
     leds_r_npi: led_pins@0 {
         pins = "PL10";
         function = "gpio_out";
-    };
-    vdd_cpux_r_npi: regulator_pins@0 {
-        allwinner,pins = "PL6";
-        allwinner,function = "gpio_out";
-        allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-        allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
     };
 };
 

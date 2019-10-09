@@ -42,8 +42,8 @@
 #include "sun8i-h3-nanopi.dtsi"
 
 / {
-	model = "FriendlyElec NanoPi-R1S";
-	compatible = "friendlyarm,nanopi-r1s", "allwinner,sun8i-h3";
+	model = "FriendlyElec NanoPi-R1S-H3";
+	compatible = "friendlyarm,nanopi-r1s-h3", "allwinner,sun8i-h3";
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
@@ -161,4 +161,9 @@
 		interrupts = <6 10 IRQ_TYPE_LEVEL_HIGH>; /* PG10 / EINT10 */
 		interrupt-names = "host-wake";
 	};
+};
+
+&usb_otg {
+	dr_mode = "peripheral";
+	status = "okay";
 };

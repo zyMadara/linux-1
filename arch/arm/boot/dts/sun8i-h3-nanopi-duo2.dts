@@ -44,7 +44,7 @@
 
 / {
 	model = "FriendlyElec NanoPi-Duo2";
-	compatible = "friendlyarm,nanopi-duo2", "allwinner,sun8i-h3";
+	compatible = "friendlyelec,nanopi-duo2", "allwinner,sun8i-h3";
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";
 		pinctrl-names = "default";

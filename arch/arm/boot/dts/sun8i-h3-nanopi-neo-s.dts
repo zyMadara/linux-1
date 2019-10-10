@@ -44,7 +44,7 @@
 
 / {
 	model = "FriendlyElec NanoPi-NEO-S";
-	compatible = "friendlyarm,nanopi-neo-s", "allwinner,sun8i-h3";
+	compatible = "friendlyelec,nanopi-neo-s", "allwinner,sun8i-h3";
 
 	wifi_pwrseq: wifi_pwrseq {
 		compatible = "mmc-pwrseq-simple";

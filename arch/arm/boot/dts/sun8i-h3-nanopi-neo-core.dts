@@ -44,7 +44,7 @@
 
 / {
 	model = "FriendlyElec NanoPi-NEO-Core";
-	compatible = "friendlyarm,nanopi-neo-core", "allwinner,sun8i-h3";
+	compatible = "friendlyelec,nanopi-neo-core", "allwinner,sun8i-h3";
 };
 
 &emac {

@@ -42,7 +42,7 @@
 
 / {
 	model = "FriendlyElec ZeroPi";
-	compatible = "friendlyarm,zeropi", "allwinner,sun8i-h3";
+	compatible = "friendlyelec,zeropi", "allwinner,sun8i-h3";
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";

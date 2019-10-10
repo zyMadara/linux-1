@@ -44,7 +44,7 @@
 
 / {
 	model = "FriendlyElec NanoPi-M1";
-	compatible = "friendlyarm,nanopi-m1", "allwinner,sun8i-h3";
+	compatible = "friendlyelec,nanopi-m1", "allwinner,sun8i-h3";
 
 	cam_xclk: cam-xclk {
 		#clock-cells = <0>;

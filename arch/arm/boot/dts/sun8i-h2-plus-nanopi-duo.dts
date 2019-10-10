@@ -44,7 +44,7 @@
 
 / {
 	model = "FriendlyElec NanoPi-Duo";
-	compatible = "friendlyarm,nanopi-duo", "allwinner,sun8i-h3";
+	compatible = "friendlyelec,nanopi-duo", "allwinner,sun8i-h3";
 
     aliases {
         xr819 = &xr819wifi;

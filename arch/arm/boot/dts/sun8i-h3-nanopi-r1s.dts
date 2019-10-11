@@ -159,3 +159,13 @@
 	dr_mode = "peripheral";
 	status = "okay";
 };
+
+&i2c0 {
+	status = "okay";
+
+	eeprom@51 {
+		compatible = "microchip,24c02";
+		reg = <0x51>;
+		pagesize = <16>;
+	};
+};

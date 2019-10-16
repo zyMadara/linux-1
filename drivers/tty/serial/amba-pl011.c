@@ -248,7 +248,12 @@ static int pl011_fifo_to_tty(struct uart_amba_port *uap)
  */
 #ifdef CONFIG_DMA_ENGINE
 
+#if defined(CONFIG_MACH_NANOPI2) || defined(CONFIG_MACH_NANOPI3)
+/* pl08xdma: transfer size of single lli is 4095 */
+#define PL011_DMA_BUFFER_SIZE (2048)
+#else
 #define PL011_DMA_BUFFER_SIZE PAGE_SIZE
+#endif
 
 static int pl011_sgbuf_init(struct dma_chan *chan, struct pl011_sgbuf *sg,
 	enum dma_data_direction dir)

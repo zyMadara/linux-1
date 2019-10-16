@@ -41,6 +41,9 @@
 
 #include "nexell-pcm.h"
 
+#define NX_DEBUG_TIMESTAMP			(0)
+#define NX_CLEAR_DMABUFFER			(0)
+
 /* #define DUMP_DMA_ENABLE */
 #define	DUMP_DMA_PATH_P			"/tmp/pcm_dma_p.raw"
 #define	DUMP_DMA_PATH_C			"/tmp/pcm_dma_c.raw"
@@ -166,6 +169,7 @@ static void nx_pcm_file_mem_write(struct snd_pcm_substream *substream)
 #define	nx_pcm_file_mem_write(s)
 #endif
 
+#if NX_CLEAR_DMABUFFER
 static void nx_pcm_dma_clear(struct snd_pcm_substream *substream)
 {
 	struct nx_pcm_runtime_data *prtd = substream_to_prtd(substream);
@@ -175,7 +179,7 @@ static void nx_pcm_dma_clear(struct snd_pcm_substream *substream)
 	void *src_addr = NULL;
 
 	if (offset == 0)
-			offset = snd_pcm_lib_buffer_bytes(substream);
+		offset = snd_pcm_lib_buffer_bytes(substream);
 	offset  -= length;
 	src_addr = (void *)(runtime->dma_area + offset);
 
@@ -184,6 +188,9 @@ static void nx_pcm_dma_clear(struct snd_pcm_substream *substream)
 			memset(src_addr, 0, length);
 	}
 }
+#else
+static inline void nx_pcm_dma_clear(struct snd_pcm_substream *substream) { }
+#endif
 
 /*
  * PCM INTERFACE
@@ -192,28 +199,27 @@ static void nx_pcm_dma_complete(void *arg)
 {
 	struct snd_pcm_substream *substream = arg;
 	struct nx_pcm_runtime_data *prtd = substream_to_prtd(substream);
-	long long ts = prtd->time_stamp_us;
-	long long new = ktime_to_us(ktime_get());
 	long long period_us = prtd->period_time_us;
-	int over_samples = div64_s64((new - ts), period_us);
+	int over_samples = 1;
 	int i;
 
-	/* i2s master mode */
-	if (prtd->dma_param->real_clock != 0) {
-		if (2 > over_samples) {
-			over_samples = 1;
-			prtd->time_stamp_us = new;
-		} else {
-			prtd->time_stamp_us += (over_samples * period_us);
-		}
+#if NX_DEBUG_TIMESTAMP
+	long long ts = prtd->time_stamp_us;
+	long long new = ktime_to_us(ktime_get());
+
+	over_samples = div64_s64((new - ts), period_us);
+	if (over_samples > 1) {
+		prtd->time_stamp_us += (over_samples * period_us);
+		dev_dbg(prtd->dev, "[pcm_overs : %d]\n", over_samples);
+	} else {
+		over_samples = 1;
+		prtd->time_stamp_us = new;
 	}
-	/*
-	if (over_samples > 1)
-		dev_warn(prtd->dev, "[pcm_overs : %d]\n", over_samples);
-	*/
+#endif
+
 	if (prtd->dma_param->real_clock != 0) {
 		/* i2s master mode */
-		for (i = 0; over_samples > i; i++) {
+		for (i = 0; i < over_samples; i++) {
 			prtd->offset += snd_pcm_lib_period_bytes(substream);
 			if (prtd->offset >= snd_pcm_lib_buffer_bytes(substream))
 				prtd->offset = 0;

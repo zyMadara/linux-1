@@ -95,6 +95,11 @@
 			hysteresis = <2000>;
 			type = "passive";
 		};
+		cpu_alert_hot: cpu_alert_hot {
+			temperature = <90000>;
+			hysteresis = <2000>;
+			type = "passive";
+		};
 		cpu_crit: cpu_crit {
 			temperature = <100000>;
 			hysteresis = <2000>;
@@ -115,8 +120,8 @@
 			trip = <&cpu_very_hot>;
 			cooling-device = <&cpu0 THERMAL_NO_LIMIT 3>;
 		};
-		cpu_crit_limit_cpu {
-			trip = <&cpu_very_hot>;
+		cpu_alert_hot_limit_cpu {
+			trip = <&cpu_alert_hot>;
 			cooling-device = <&cpu0 4 THERMAL_NO_LIMIT>;
 		};
 	};

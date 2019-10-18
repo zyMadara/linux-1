@@ -54,7 +54,7 @@
 /*
  * PCM INFO
  */
-#define	PERIOD_BYTES_MAX		65536
+#define	PERIOD_BYTES_MAX		15360
 
 static struct snd_pcm_hardware nx_pcm_hardware = {
 	/*  | SNDRV_PCM_INFO_BLOCK_TRANSFER */

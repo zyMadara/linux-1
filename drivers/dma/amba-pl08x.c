@@ -218,6 +218,7 @@ struct pl08x_txd {
 	bool cyclic;
 	/* add wait_to flush dma buffer */
 	int  lli_num;
+	int  period_len;
 };
 
 /**
@@ -1095,6 +1096,9 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 				"%s max bytes per lli = %zu\n",
 				__func__, max_bytes_per_lli);
 
+			if (txd->period_len > max_bytes_per_lli)
+				cctl &= ~PL080_CONTROL_TC_IRQ_EN;
+
 			/*
 			 * Make largest possible LLIs until less than one bus
 			 * width left
@@ -1125,6 +1129,10 @@ static int pl08x_fill_llis_for_desc(struct pl08x_driver_data *pl08x,
 
 				cctl = pl08x_cctl_bits(cctl, bd.srcbus.buswidth,
 					bd.dstbus.buswidth, tsize);
+
+				if (txd->period_len > 0 && bd.remainder == lli_len)
+					cctl |= PL080_CONTROL_TC_IRQ_EN;
+
 				pl08x_fill_lli_for_desc(pl08x, &bd, num_llis++,
 						lli_len, cctl, tsize);
 				total_bytes += lli_len;
@@ -1675,6 +1683,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_dma_cyclic(
 
 	txd->cyclic = true;
 	txd->cctl |= PL080_CONTROL_TC_IRQ_EN;
+	txd->period_len = period_len;
 	for (tmp = 0; tmp < buf_len; tmp += period_len) {
 		ret = pl08x_tx_add_sg(txd, direction, slave_addr,
 				      buf_addr + tmp, period_len);

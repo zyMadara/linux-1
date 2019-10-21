@@ -137,19 +137,19 @@
 	cooling-maps {
 		cpu_warm_limit_cpu {
 			trip = <&cpu_warm>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 4>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 1>;
 		};
 		cpu_hot_limit_cpu {
 			trip = <&cpu_hot>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 9>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 3>;
 		};
 		cpu_very_hot_limit_cpu {
 			trip = <&cpu_very_hot>;
-			cooling-device = <&cpu0 THERMAL_NO_LIMIT 14>;
+			cooling-device = <&cpu0 THERMAL_NO_LIMIT 5>;
 		};
 		cpu_alert_hot_limit_cpu {
 			trip = <&cpu_alert_hot>;
-			cooling-device = <&cpu0 16 THERMAL_NO_LIMIT>;
+			cooling-device = <&cpu0 8 THERMAL_NO_LIMIT>;
 		};
 	};
 };

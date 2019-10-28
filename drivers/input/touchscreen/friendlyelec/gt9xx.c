@@ -363,6 +363,14 @@ Output:
 *********************************************************/
 static void gtp_touch_down(struct goodix_ts_data* ts, s32 id, s32 x, s32 y, s32 w)
 {
+#if GTP_INVERT_XY
+    /* Inversions have to happen before axis swapping */
+    if (ts->inverted_x)
+        x = ts->abs_x_max - x;
+    if (ts->inverted_y)
+        y = ts->abs_y_max - y;
+#endif
+
 #if GTP_CHANGE_X2Y
     GTP_SWAP(x, y);
 #endif
@@ -1411,6 +1419,11 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
 	memcpy(&config[GTP_ADDR_LENGTH], send_cfg_buf[sensor_id], ts->gtp_cfg_len);
 #endif
 
+	if (ts->pnl_init_error == 2) {
+		ts->gtp_cfg_len = 0;
+		memset(&config[GTP_ADDR_LENGTH], 0, GTP_CONFIG_MAX_LENGTH);
+	}
+
     GTP_INFO("Config group%d used,length: %d", sensor_id, ts->gtp_cfg_len);
 
     if (ts->gtp_cfg_len < GTP_CONFIG_MIN_LENGTH)
@@ -2425,7 +2438,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	GTP_DEBUG_FUNC();
 
 	ctp_id = panel_get_touch_id();
-	if (ctp_id != CTP_GOODIX && ctp_id != CTP_AUTO) {
+	if (ctp_id != CTP_GOODIX && ctp_id != CTP_GT9XXA && ctp_id != CTP_AUTO) {
 		return -ENODEV;
 	}
 
@@ -2492,6 +2505,15 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		GTP_ERROR("GTP request IO port failed.");
 		kfree(ts);
 		return ret;
+	}
+
+	if (ctp_id == CTP_GT9XXA) {
+		/* Support for LCD-YZ43 + GT911_1060 */
+#if GTP_INVERT_XY
+		ts->inverted_x = true;
+		ts->inverted_y = true;
+#endif
+		ts->pnl_init_error = 2; /* HACK: disable config */
 	}
 
 #if GTP_COMPATIBLE_MODE

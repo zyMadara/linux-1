@@ -50,6 +50,7 @@
 //***************************PART1:ON/OFF define*******************************
 #define GTP_CUSTOM_CFG        0
 #define GTP_CHANGE_X2Y        0	   //swap x y
+#define GTP_INVERT_XY         1
 #define GTP_DRIVER_SEND_CFG   1	   //driver send config
 #define GTP_HAVE_TOUCH_KEY    0
 #define GTP_POWER_CTRL_SLEEP  0    //power off when suspend
@@ -130,6 +131,10 @@ struct goodix_ts_data {
     u8 is_950;
 #endif
 
+#if GTP_INVERT_XY
+    bool inverted_x;
+    bool inverted_y;
+#endif
 };
 
 extern u16 show_len;

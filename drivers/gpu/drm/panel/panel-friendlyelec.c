@@ -321,6 +321,32 @@ static struct lcd_desc s430 = {
 	},
 };
 
+static struct lcd_desc yz43 = {
+	.width= 480,
+	.height = 800,
+	.p_width = 108,
+	.p_height = 64,
+	.bpp = 24,
+	.freq = 60,
+
+	.timing = {
+		.h_fp = 32,
+		.h_bp = 32,
+		.h_sw = 16,
+		.v_fp = 20,
+		.v_fpe = 1,
+		.v_bp = 20,
+		.v_bpe = 1,
+		.v_sw = 4,
+	},
+	.polarity = {
+		.rise_vclk = 0,
+		.inv_hsync = 1,
+		.inv_vsync = 1,
+		.inv_vden = 0,
+	},
+};
+
 static struct lcd_desc w101 = {
 	.width= 1024,
 	.height = 600,
@@ -564,6 +590,7 @@ static struct {
 	{ "K101",	&hd101,	CTP_FT5X06  },
 	{ "U101A",	&hd101,	CTP_GOODIX  },
 	{ "W500",	&w500,	CTP_GOODIX  },
+	{ "YZ43",	&yz43,	CTP_GT9XXA  },
 
 	{ "H43",	&h43,	0 },
 	{ "P43",	&p43,	0 },

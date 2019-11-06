@@ -200,8 +200,15 @@ int nx_soc_dp_cont_prepare(struct nx_control_dev *control)
 			module, poweron ? "enabled" : "disabled");
 	}
 
-	if (poweron)
+	if (poweron) {
+		/* Get output format initialized by bootloader */
+		nx_dpc_get_mode(module, &out_format, NULL, NULL, NULL, NULL,
+				NULL, NULL, NULL, NULL, NULL, NULL);
+		ctl->out_format = out_format;
+		pr_debug("%s: dev.%d output format = %d\n",
+			nx_panel_get_name(control->panel_type), module, out_format);
 		return 0;
+	}
 #endif
 
 	/* set delay mask */

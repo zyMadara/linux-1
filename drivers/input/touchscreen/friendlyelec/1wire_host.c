@@ -500,7 +500,7 @@ static int init_timer_for_1wire(void)
 	int period_ns = NSEC_PER_SEC / SAMPLE_BPS;
 
 #if defined(CONFIG_ARCH_S5P4418)
-	period_ns -= 200;
+	period_ns -= 650;
 #endif
 	return pwm_config(pwm, period_ns >> 1, period_ns);
 }

@@ -35,3 +35,8 @@
 &dw_mmc_1 {
 	status = "okay";
 };
+
+&cfg_wlanen {
+	/delete-property/ nexell,pin-dir;
+	/delete-property/ nexell,pin-val;
+};

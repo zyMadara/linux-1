@@ -46,3 +46,8 @@
 &spi_0 {
 	/delete-node/ fbtft@0;
 };
+
+&cfg_wlanen {
+	/delete-property/ nexell,pin-dir;
+	/delete-property/ nexell,pin-val;
+};

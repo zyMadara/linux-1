@@ -211,7 +211,7 @@
 			vdd_arm_spu-supply = <&VCC1P1_ARM_SPU>;
 			vdd_arm_axp-supply = <&VCC1P1_ARM_PMIC>;
 			status = "okay";
-			dvfs-tables = <1400000 1200000
+			dvfs-tables = <1400000 1220000
 				 1300000 1160000
 				 1200000 1120000
 				 1100000 1080000
@@ -353,7 +353,7 @@
 					VCC1P1_ARM_PMIC:
 						axp22_dcdc2 { PMIC_PDATA_INIT(13,
 							"axp228_1p1_arm",
-							600000, 1540000, 1, 1, 1200000,
+							600000, 1540000, 1, 1, 1220000,
 							1, 0xF) };
 					VCC1P0_CORE_PMIC:
 						axp22_dcdc3 { PMIC_PDATA_INIT(14,

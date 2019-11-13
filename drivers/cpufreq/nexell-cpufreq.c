@@ -643,6 +643,7 @@ static void *nxp_cpufreq_make_table(struct platform_device *pdev,
 	int tb_size, asv_size = 0;
 	int id = 0, n = 0;
 	int max_freq = pdata->max_freq;
+	int uv_adj = 0;
 
 	/* user defined dvfs */
 	if (pdata->dvfs_table && pdata->table_size)
@@ -651,6 +652,14 @@ static void *nxp_cpufreq_make_table(struct platform_device *pdev,
 	/* asv dvfs tables */
 	if (ops->setup_table)
 		asv_size = ops->setup_table(dvfs_tables);
+
+#if defined(CONFIG_ARCH_S5P4418)
+	if (plat_tbs && pdata->supply_optional && !asv_param.level) {
+		uv_adj = 20000;
+		if (plat_tbs[0][1] > 0)
+			plat_tbs[0][1] += 20000;
+	}
+#endif
 
 	if (!pdata->table_size && !asv_size) {
 		dev_err(&pdev->dev, "failed no freq table !!!\n");
@@ -674,7 +683,7 @@ static void *nxp_cpufreq_make_table(struct platform_device *pdev,
 
 			if (plat_n_voltage) {
 				dvfs_tables[id][0] = plat_tbs[id][0];
-				dvfs_tables[id][1] = plat_n_voltage;
+				dvfs_tables[id][1] = plat_n_voltage + uv_adj;
 
 			} else if (plat_tbs) {
 				for (n = 0; asv_size > n; n++) {

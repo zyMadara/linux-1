@@ -58,6 +58,7 @@ struct cntry_locales_custom {
 
 /* Locale table for sec */
 const struct cntry_locales_custom translate_custom_table[] = {
+#ifdef CUSTOM_TABLE_SEC
 #if defined(BCM4330_CHIP) || defined(BCM4334_CHIP) || defined(BCM43241_CHIP)
 	/* 4330/4334/43241 */
 	{"AR", "AR", 1},
@@ -329,6 +330,7 @@ const struct cntry_locales_custom translate_custom_table[] = {
 	{"CA", "US", 1},
 #endif /* DHD_SUPPORT_FCC_US_988 */
 #endif /* default ccode/regrev */
+#endif /* CUSTOM_TABLE_SEC */
 };
 
 /* Customized Locale convertor

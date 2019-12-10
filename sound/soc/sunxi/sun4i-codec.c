@@ -41,6 +41,8 @@
 #include <sound/initval.h>
 #include <sound/dmaengine_pcm.h>
 
+#define DAC_ALWAYS_ON
+
 /* Codec DAC digital controls and FIFO registers */
 #define SUN4I_CODEC_DAC_DPC			(0x00)
 #define SUN4I_CODEC_DAC_DPC_EN_DA			(31)
@@ -239,6 +241,30 @@ struct sun4i_codec {
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
 };
 
+static const struct snd_pcm_hardware sunxi_pcm_play_hardware = {
+	.info			= SNDRV_PCM_INFO_INTERLEAVED | SNDRV_PCM_INFO_BLOCK_TRANSFER |
+				      SNDRV_PCM_INFO_MMAP | SNDRV_PCM_INFO_MMAP_VALID |
+				      SNDRV_PCM_INFO_PAUSE | SNDRV_PCM_INFO_RESUME,
+	.formats		= SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
+	.rates			= SNDRV_PCM_RATE_8000_192000 | SNDRV_PCM_RATE_KNOT,
+	.rate_min		= 8000,
+	.rate_max		= 192000,
+	.channels_min		= 1,
+	.channels_max		= 2,
+	.buffer_bytes_max	= 32*1024,    /* value must be (2^n)Kbyte size */
+	.period_bytes_min	= 256,
+	.period_bytes_max	= 1024*2,
+	.periods_min		= 2,
+	.periods_max		= 4,
+	.fifo_size		= 128,
+};
+
+static const struct snd_dmaengine_pcm_config sun8i_dmaengine_pcm_config = {
+	.pcm_hardware = &sunxi_pcm_play_hardware,
+	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
+	.prealloc_buffer_size = 128 * 1024,
+};
+
 static void sun4i_codec_start_playback(struct sun4i_codec *scodec)
 {
 	/* Flush TX FIFO */
@@ -254,10 +280,14 @@ static void sun4i_codec_start_playback(struct sun4i_codec *scodec)
 
 static void sun4i_codec_stop_playback(struct sun4i_codec *scodec)
 {
+#ifdef DAC_ALWAYS_ON
+	return;
+#else
 	/* Disable DAC DRQ */
 	regmap_update_bits(scodec->regmap, SUN4I_CODEC_DAC_FIFOC,
 			   BIT(SUN4I_CODEC_DAC_FIFOC_DAC_DRQ_EN),
 			   0);
+#endif
 }
 
 static void sun4i_codec_start_capture(struct sun4i_codec *scodec)
@@ -591,10 +621,14 @@ static int sun4i_codec_startup(struct snd_pcm_substream *substream,
 static void sun4i_codec_shutdown(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *dai)
 {
+#ifdef DAC_ALWAYS_ON
+	return;
+#else
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct sun4i_codec *scodec = snd_soc_card_get_drvdata(rtd->card);
 
 	clk_disable_unprepare(scodec->clk_module);
+#endif
 }
 
 static const struct snd_soc_dai_ops sun4i_codec_dai_ops = {
@@ -1090,10 +1124,15 @@ static const struct snd_soc_dapm_widget sun8i_a23_codec_codec_widgets[] = {
 	/* Digital parts of the ADCs */
 	SND_SOC_DAPM_SUPPLY("ADC Enable", SUN6I_CODEC_ADC_FIFOC,
 			    SUN6I_CODEC_ADC_FIFOC_EN_AD, 0, NULL, 0),
-	/* Digital parts of the DACs */
-	SND_SOC_DAPM_SUPPLY("DAC Enable", SUN4I_CODEC_DAC_DPC,
-			    SUN4I_CODEC_DAC_DPC_EN_DA, 0, NULL, 0),
 
+	/* Digital parts of the DACs */
+#ifdef DAC_ALWAYS_ON
+	SND_SOC_DAPM_REG(snd_soc_dapm_supply, "DAC Enable", SUN4I_CODEC_DAC_DPC, 
+				SUN4I_CODEC_DAC_DPC_EN_DA, 1, 1, 1),   // on_val = off_val
+#else	
+	SND_SOC_DAPM_SUPPLY("DAC Enable", SUN4I_CODEC_DAC_DPC,
+				SUN4I_CODEC_DAC_DPC_EN_DA, 0, NULL, 0),
+#endif
 };
 
 static const struct snd_soc_codec_driver sun8i_a23_codec_codec = {
@@ -1571,6 +1610,13 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get the module clock\n");
 		return PTR_ERR(scodec->clk_module);
 	}
+	
+#ifdef DAC_ALWAYS_ON
+	if (clk_prepare_enable(scodec->clk_module)) {
+		dev_err(&pdev->dev, "Failed to enable the codec clock\n");
+		return -EINVAL;
+	}
+#endif
 
 	if (quirks->has_reset) {
 		scodec->rst = devm_reset_control_get_exclusive(&pdev->dev,
@@ -1642,7 +1688,7 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		goto err_unregister_codec;
 	}
 
-	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, NULL, 0);
+	ret = devm_snd_dmaengine_pcm_register(&pdev->dev, &sun8i_dmaengine_pcm_config, 0);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register against DMAEngine\n");
 		goto err_unregister_codec;
@@ -1662,6 +1708,12 @@ static int sun4i_codec_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to register our card\n");
 		goto err_unregister_codec;
 	}
+
+#ifdef DAC_ALWAYS_ON
+	regmap_update_bits(scodec->regmap, SUN4I_CODEC_DAC_DPC,
+				   BIT(SUN4I_CODEC_DAC_DPC_EN_DA),
+				   BIT(SUN4I_CODEC_DAC_DPC_EN_DA));
+#endif
 
 	return 0;
 

@@ -27,6 +27,8 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 
+#define LINEOUT_ALWAYS_EN
+
 /* Codec analog control register offsets and bit fields */
 #define SUN8I_ADDA_HP_VOLC		0x00
 #define SUN8I_ADDA_HP_VOLC_PA_CLK_GATE		7
@@ -633,9 +635,11 @@ static const struct snd_kcontrol_new sun8i_codec_lineout_src[] = {
 static const struct snd_soc_dapm_widget sun8i_codec_lineout_widgets[] = {
 	SND_SOC_DAPM_MUX("Line Out Source Playback Route",
 			 SND_SOC_NOPM, 0, 0, sun8i_codec_lineout_src),
+#ifndef LINEOUT_ALWAYS_EN
 	/* It is unclear if this is a buffer or gate, model it as a supply */
 	SND_SOC_DAPM_SUPPLY("Line Out Enable", SUN8I_ADDA_PAEN_HP_CTRL,
 			    SUN8I_ADDA_PAEN_HP_CTRL_LINEOUTEN, 0, NULL, 0),
+#endif
 	SND_SOC_DAPM_OUTPUT("LINEOUT"),
 };
 
@@ -645,7 +649,9 @@ static const struct snd_soc_dapm_route sun8i_codec_lineout_routes[] = {
 	{ "Line Out Source Playback Route", "Mono Differential", "Left Mixer" },
 	{ "Line Out Source Playback Route", "Mono Differential", "Right Mixer" },
 	{ "LINEOUT", NULL, "Line Out Source Playback Route" },
+#ifndef LINEOUT_ALWAYS_EN
 	{ "LINEOUT", NULL, "Line Out Enable", },
+#endif
 };
 
 static int sun8i_codec_add_lineout(struct snd_soc_component *cmpnt)
@@ -917,6 +923,12 @@ static int sun8i_codec_analog_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to create regmap\n");
 		return PTR_ERR(regmap);
 	}
+
+#ifdef LINEOUT_ALWAYS_EN
+	regmap_update_bits(regmap, SUN8I_ADDA_PAEN_HP_CTRL,
+			   BIT(SUN8I_ADDA_PAEN_HP_CTRL_LINEOUTEN),
+			   BIT(SUN8I_ADDA_PAEN_HP_CTRL_LINEOUTEN));
+#endif
 
 	return devm_snd_soc_register_component(&pdev->dev,
 					       &sun8i_codec_analog_cmpnt_drv,

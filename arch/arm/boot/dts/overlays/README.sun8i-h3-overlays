@@ -1,0 +1,20 @@
+# Usage:
+1. configure /boot/uEnv.txt
+    - edit "overlays" field in /boot/uEnv.txt to select overlay.
+    - add overlay's parameters in /boot/uEnv.txt
+2. boot system.
+
+# Supported overlays:
+- uart1
+- uart2
+- uart3
+
+# Supported overlays' parameters
+uart1's parameters
+    - uart1/enable: yes | no
+
+uart2's parameters
+    - uart2/enable: yes | no
+
+uart3's parameters
+    - uart3/enable: yes | no

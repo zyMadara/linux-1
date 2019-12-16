@@ -1,20 +1,49 @@
-# Usage:
+# Usage
 1. configure /boot/uEnv.txt
-    - edit "overlays" field in /boot/uEnv.txt to select overlay.
-    - add overlay's parameters in /boot/uEnv.txt
+    - edit "overlays" field to select overlay.
+    - add overlay's parameters
 2. boot system.
+
 
 # Supported overlays:
 - uart1
 - uart2
 - uart3
+- tft28, for Matrix - 2'8 SPI Key TFT
+
 
 # Supported overlays' parameters
-uart1's parameters
-    - uart1/enable: yes | no
+```
+Only effective when it's included in /boot/uEnv.txt/overlays field.
 
-uart2's parameters
-    - uart2/enable: yes | no
+______________________________________________________________________________
+Name:   uart1
+Info:   uart1 of CPU
+Load:   overlays=uart1,uart1/<param>=<val>
+Params: enable                  {yes, no}, defaul is yes
 
-uart3's parameters
-    - uart3/enable: yes | no
+
+______________________________________________________________________________
+Name:   uart2
+Info:   uart2 of CPU
+Load:   overlays=uart2,uart2/<param>=<val>
+Params: enable                  {yes, no}, defaul is yes
+
+______________________________________________________________________________
+Name:   uart3
+Info:   uart3 of CPU
+Load:   overlays=uart3,uart3/<param>=<val>
+Params: enable                  {yes, no}, defaul is yes
+
+______________________________________________________________________________
+
+Name:   tft28
+Info:   Matrix - 2'8 SPI Key TFT
+Load:   overlays=... tft28, tft28/<param>=<val>
+Params: enable                  {yes, no}
+        speed                   Display SPI bus speed, default is 50000000(50MHz).
+        rotate                  Display rotation {0, 90, 0xb4, 0x10e}
+        fps                     Delay between frame updates
+        debug                   Debug output flag {0~0xFFFFFFFF, drivers/staging/fbtft/fbtft.h}
+}
+```

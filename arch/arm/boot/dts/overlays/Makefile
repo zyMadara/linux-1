@@ -1,7 +1,8 @@
 dtbo-$(CONFIG_MACH_SUN8I) += \
 	sun8i-h3-uart1.dtbo \
 	sun8i-h3-uart2.dtbo \
-	sun8i-h3-uart3.dtbo
+	sun8i-h3-uart3.dtbo \
+	sun8i-h3-tft28.dtbo
 
 scr-$(CONFIG_MACH_SUN8I) += \
 	sun8i-h3-fixup.scr

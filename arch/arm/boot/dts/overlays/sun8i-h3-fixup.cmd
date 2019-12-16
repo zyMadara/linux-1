@@ -45,5 +45,27 @@ for i in ${overlays}; do
         if test -n "${tft28/fps}"; then
             fdt set /soc/spi@01c68000/pitft@0 fps <${tft28/fps}>
         fi
+    elif test "${i}" = "tft13"; then
+        if test "${tft13/enable}" = "yes"; then
+            fdt set /soc/spi@01c68000/pitft@0 status okay
+        elif test "${tft13/enable}" = "no"; then
+            fdt set /soc/spi@01c68000/pitft@0 status disabled
+        fi
+
+        if test -n "${tft13/debug}"; then
+            fdt set /soc/spi@01c68000/pitft@0 debug <${tft13/debug}>
+        fi
+
+        if test -n "${tft13/speed}"; then
+            fdt set /soc/spi@01c68000/pitft@0 spi-max-frequency <${tft13/speed}>
+        fi
+
+        if test -n "${tft13/rotate}"; then
+            fdt set /soc/spi@01c68000/pitft@0 rotate <${tft13/rotate}>
+        fi
+
+        if test -n "${tft13/fps}"; then
+            fdt set /soc/spi@01c68000/pitft@0 fps <${tft13/fps}>
+        fi
     fi
 done

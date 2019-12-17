@@ -3,23 +3,65 @@
 
 
 for i in ${overlays}; do 
-    if test "${i}" = "uart1"; then
+    if test "${i}" = "uart0"; then
+        if test "${uart0/enable}" = "yes"; then
+            fdt set serial0 status okay
+        elif test "${uart0/enable}" = "no"; then
+            fdt set serial0 status disabled
+        fi
+    elif test "${i}" = "uart1"; then
         if test "${uart1/enable}" = "yes"; then
-            fdt set /soc/serial@01c28400 status okay
+            fdt set serial1 status okay
         elif test "${uart1/enable}" = "no"; then
-            fdt set /soc/serial@01c28400 status disabled
+            fdt set serial1 status disabled
         fi
     elif test "${i}" = "uart2"; then
         if test "${uart2/enable}" = "yes"; then
-            fdt set /soc/serial@01c28800 status okay
+            fdt set serial2 status okay
         elif test "${uart2/enable}" = "no"; then
-            fdt set /soc/serial@01c28800 status disabled
+            fdt set serial2 status disabled
         fi
     elif test "${i}" = "uart3"; then
         if test "${uart3/enable}" = "yes"; then
-            fdt set /soc/serial@01c28c00 status okay
+            fdt set serial3 status okay
         elif test "${uart3/enable}" = "no"; then
-            fdt set /soc/serial@01c28c00 status disabled
+            fdt set serial3 status disabled
+        fi
+    elif test "${i}" = "i2c0"; then
+        if test "${i2c0/enable}" = "yes"; then
+            fdt set i2c0 status okay
+        elif test "${i2c0/enable}" = "no"; then
+            fdt set i2c0 status disabled
+        fi
+    elif test "${i}" = "i2c1"; then
+        if test "${i2c1/enable}" = "yes"; then
+            fdt set i2c1 status okay
+        elif test "${i2c1/enable}" = "no"; then
+            fdt set i2c1 status disabled
+        fi
+    elif test "${i}" = "i2c2"; then
+        if test "${i2c2/enable}" = "yes"; then
+            fdt set i2c2 status okay
+        elif test "${i2c2/enable}" = "no"; then
+            fdt set i2c2 status disabled
+        fi
+    elif test "${i}" = "spi0"; then
+        if test "${spi0/enable}" = "yes"; then
+            fdt set spi0 status okay
+        elif test "${spi0/enable}" = "no"; then
+            fdt set spi0 status disabled
+        fi
+    elif test "${i}" = "pwm0"; then
+        if test "${pwm0/enable}" = "yes"; then
+            fdt set pwm0 status okay
+        elif test "${pwm0/enable}" = "no"; then
+            fdt set pwm0 status disabled
+        fi
+    elif test "${i}" = "ir"; then
+        if test "${ir/enable}" = "yes"; then
+            fdt set ir status okay
+        elif test "${ir/enable}" = "no"; then
+            fdt set ir status disabled
         fi
     elif test "${i}" = "tft28"; then
         if test "${tft28/enable}" = "yes"; then

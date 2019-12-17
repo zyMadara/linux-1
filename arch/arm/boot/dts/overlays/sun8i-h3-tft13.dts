@@ -55,6 +55,7 @@
 				status = "okay";
 
 				spi-max-frequency = <50000000>;
+				rotate = <0>;
 				fps = <33>;
 				buswidth = <8>;
 				dc-gpios = <&pio 0 1 GPIO_ACTIVE_HIGH>;	 /* PA1 */

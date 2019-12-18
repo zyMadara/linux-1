@@ -16,5 +16,5 @@ dtb-$(CONFIG_ARCH_SUNXI) += sun50i-h5-nanopi-neo2-black.dtb
 dtb-$(CONFIG_ARCH_SUNXI) += sun50i-h5-nanopi-r1s.dtb
 
 always		:= $(dtb-y)
-subdir-y	:= overlays
+subdir-y    := $(dts-dirs) overlays
 clean-files	:= *.dtb

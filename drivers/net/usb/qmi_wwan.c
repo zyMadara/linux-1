@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
+#include <linux/if_arp.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
@@ -48,9 +49,33 @@
 struct qmi_wwan_state {
 	struct usb_driver *subdriver;
 	atomic_t pmcount;
-	unsigned long unused;
+	unsigned long flags;
 	struct usb_interface *control;
 	struct usb_interface *data;
+};
+
+enum qmi_wwan_flags {
+	QMI_WWAN_FLAG_RAWIP = 1 << 0,
+};
+
+static ssize_t raw_ip_show(struct device *d, struct device_attribute *attr, char *buf)
+{
+	struct usbnet *dev = netdev_priv(to_net_dev(d));
+	struct qmi_wwan_state *info = (void *)&dev->data;
+
+	return sprintf(buf, "%c\n", info->flags & QMI_WWAN_FLAG_RAWIP ? 'Y' : 'N');
+}
+
+static DEVICE_ATTR_RO(raw_ip);
+
+static struct attribute *qmi_wwan_sysfs_attrs[] = {
+	&dev_attr_raw_ip.attr,
+	NULL,
+};
+
+static struct attribute_group qmi_wwan_sysfs_attr_group = {
+	.name = "qmi",
+	.attrs = qmi_wwan_sysfs_attrs,
 };
 
 /* default ethernet address used by the modem */
@@ -377,6 +402,7 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 		dev->net->dev_addr[0] &= 0xbf;	/* clear "IP" bit */
 	}
 	dev->net->netdev_ops = &qmi_wwan_netdev_ops;
+	dev->net->sysfs_groups[0] = &qmi_wwan_sysfs_attr_group;
 
 #if 1 //add by Quectel
 	if (dev->udev->descriptor.idVendor == cpu_to_le16(0x2C7C)) {
@@ -390,7 +416,8 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 			1, //active CDC DTR
 			intf->cur_altsetting->desc.bInterfaceNumber,
 			NULL, 0, 100);
-		}
+		info->flags |= QMI_WWAN_FLAG_RAWIP;
+	}
 #endif
 err:
 	return status;

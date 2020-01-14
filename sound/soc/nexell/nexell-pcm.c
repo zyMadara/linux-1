@@ -42,7 +42,10 @@
 #include "nexell-pcm.h"
 
 #define NX_DEBUG_TIMESTAMP			(0)
-#define NX_CLEAR_DMABUFFER			(0)
+
+#ifndef CONFIG_MACH_ANDROID_BUILD
+#define NX_CLEAR_DMABUFFER			(1)
+#endif
 
 /* #define DUMP_DMA_ENABLE */
 #define	DUMP_DMA_PATH_P			"/tmp/pcm_dma_p.raw"
@@ -169,14 +172,14 @@ static void nx_pcm_file_mem_write(struct snd_pcm_substream *substream)
 #define	nx_pcm_file_mem_write(s)
 #endif
 
-#if NX_CLEAR_DMABUFFER
+#ifdef NX_CLEAR_DMABUFFER
 static void nx_pcm_dma_clear(struct snd_pcm_substream *substream)
 {
 	struct nx_pcm_runtime_data *prtd = substream_to_prtd(substream);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned offset = prtd->offset;
 	int length = snd_pcm_lib_period_bytes(substream);
-	void *src_addr = NULL;
+	void *src_addr;
 
 	if (offset == 0)
 		offset = snd_pcm_lib_buffer_bytes(substream);
@@ -199,11 +202,11 @@ static void nx_pcm_dma_complete(void *arg)
 {
 	struct snd_pcm_substream *substream = arg;
 	struct nx_pcm_runtime_data *prtd = substream_to_prtd(substream);
-	long long period_us = prtd->period_time_us;
 	int over_samples = 1;
 	int i;
 
 #if NX_DEBUG_TIMESTAMP
+	long long period_us = prtd->period_time_us;
 	long long ts = prtd->time_stamp_us;
 	long long new = ktime_to_us(ktime_get());
 

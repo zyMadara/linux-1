@@ -146,7 +146,6 @@ static int es8316_reset(struct snd_soc_codec *codec)
  */
 static const DECLARE_TLV_DB_SCALE(dac_vol_tlv, -9600, 50, 1);
 static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -9600, 50, 1);
-static const DECLARE_TLV_DB_SCALE(hpmixer_gain_tlv, -1200, 150, 0);
 static const DECLARE_TLV_DB_SCALE(mic_bst_tlv, 0, 1200, 0);
 
 /* {0, +3, +6, +9, +12, +15, +18, +21, +24,+27,+30,+33} dB */
@@ -165,7 +164,11 @@ static unsigned int linin_pga_tlv[] = {
 static unsigned int hpout_vol_tlv[] = {
 	TLV_DB_RANGE_HEAD(1),
 	0, 3, TLV_DB_SCALE_ITEM(-4800, 1200, 0),
-
+};
+static unsigned int hpmixer_vol_tlv[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 4, TLV_DB_SCALE_ITEM(-1200, 150, 0),
+	8, 11, TLV_DB_SCALE_ITEM(-450, 150, 0),
 };
 static const char *const alc_func_txt[] = {"Off", "On"};
 static const struct soc_enum alc_func =
@@ -189,12 +192,13 @@ static const struct snd_kcontrol_new es8316_snd_controls[] = {
 	SOC_DOUBLE_TLV("HP Playback Volume", ES8316_CPHP_ICAL_VOL_REG18,
 		4, 0, 0, 1, hpout_vol_tlv),
 	/* HPMIXER VOLUME Control */
-	SOC_DOUBLE_TLV("HPMixer Gain", ES8316_HPMIX_VOL_REG16,
-	  0, 4, 7, 0, hpmixer_gain_tlv),
+	SOC_DOUBLE_TLV("HPMixer Volume", ES8316_HPMIX_VOL_REG16,
+		4, 0, 11, 0, hpmixer_vol_tlv),
+	SOC_DOUBLE("HPMixer Gain Switch", ES8316_HPMIX_PDN_REG15, 7, 3, 1, 1),
 
 	/* DAC Digital controls */
 	SOC_DOUBLE_R_TLV("DAC Playback Volume", ES8316_DAC_VOLL_REG33,
-			ES8316_DAC_VOLR_REG34, 0, 0xC0, 1, dac_vol_tlv),
+		ES8316_DAC_VOLR_REG34, 0, 0xC0, 1, dac_vol_tlv),
 
 	SOC_SINGLE("Enable DAC Soft Ramp", ES8316_DAC_SET1_REG30, 4, 1, 1),
 	SOC_SINGLE("DAC Soft Ramp Rate", ES8316_DAC_SET1_REG30, 2, 4, 0),
@@ -752,7 +756,7 @@ static int es8316_set_bias_level(struct snd_soc_codec *codec,
 		}
 		snd_soc_write(codec, ES8316_DAC_PDN_REG2F, 0x00);
 		snd_soc_write(codec, ES8316_HPMIX_SWITCH_REG14, 0x88);
-		snd_soc_write(codec, ES8316_HPMIX_PDN_REG15, 0x88);
+		snd_soc_update_bits(codec, ES8316_HPMIX_PDN_REG15, 0x33, 0x00);
 		snd_soc_write(codec, ES8316_HPMIX_VOL_REG16, 0xBB);
 		snd_soc_write(codec, ES8316_CPHP_PDN2_REG1A, 0x10);
 		snd_soc_write(codec, ES8316_CPHP_LDOCTL_REG1B, 0x30);
@@ -783,7 +787,7 @@ static int es8316_set_bias_level(struct snd_soc_codec *codec,
 		}
 		snd_soc_write(codec, ES8316_DAC_PDN_REG2F, 0x00);
 		snd_soc_write(codec, ES8316_HPMIX_SWITCH_REG14, 0x88);
-		snd_soc_write(codec, ES8316_HPMIX_PDN_REG15, 0x88);
+		snd_soc_update_bits(codec, ES8316_HPMIX_PDN_REG15, 0x33, 0x00);
 		snd_soc_write(codec, ES8316_HPMIX_VOL_REG16, 0xBB);
 		snd_soc_write(codec, ES8316_CPHP_PDN2_REG1A, 0x10);
 		snd_soc_write(codec, ES8316_CPHP_LDOCTL_REG1B, 0x30);
@@ -808,7 +812,7 @@ static int es8316_set_bias_level(struct snd_soc_codec *codec,
 		snd_soc_write(codec, ES8316_CPHP_PDN2_REG1A, 0x22);
 		snd_soc_write(codec, ES8316_CPHP_PDN1_REG19, 0x06);
 		snd_soc_write(codec, ES8316_HPMIX_SWITCH_REG14, 0x00);
-		snd_soc_write(codec, ES8316_HPMIX_PDN_REG15, 0x33);
+		snd_soc_update_bits(codec, ES8316_HPMIX_PDN_REG15, 0x33, 0x33);
 		snd_soc_write(codec, ES8316_HPMIX_VOL_REG16, 0x00);
 		snd_soc_write(codec, ES8316_ADC_PDN_LINSEL_REG22, 0xC0);
 		snd_soc_write(codec, ES8316_DAC_PDN_REG2F, 0x11);
@@ -857,7 +861,6 @@ static struct snd_soc_dai_driver es8316_dai = {
 static int es8316_init_regs(struct snd_soc_codec *codec)
 {
 	dev_dbg(codec->dev, "%s\n", __func__);
-
 
 	snd_soc_write(codec, ES8316_RESET_REG00, 0x3F);  /* RESET */
 	msleep(50);

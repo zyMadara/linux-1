@@ -929,6 +929,7 @@ dtb-$(CONFIG_MACH_SUN8I) += \
 	sun8i-h3-nanopi-neo-s.dtb \
 	sun8i-h3-zeropi.dtb \
 	sun8i-h3-nanopi-r1s.dtb \
+	sun8i-h3-nanopi-neo-plus2-h3.dtb \
 	sun8i-h2-plus-nanopi-duo.dtb \
 	sun8i-h3-orangepi-2.dtb \
 	sun8i-h3-orangepi-lite.dtb \

@@ -268,6 +268,7 @@ __setup("reboot=", reboot_setup);
 
 void machine_shutdown(void)
 {
+	local_irq_disable();
 #ifdef CONFIG_SMP
 	smp_send_stop();
 #endif

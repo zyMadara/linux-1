@@ -765,9 +765,11 @@
 };
 
 &i2c1_sda_pin {
+	nexell,pin-pull = <NX_PIN_PULL_UP>;
 	nexell,pin-strength = <1>;
 };
 &i2c1_scl_pin {
+	nexell,pin-pull = <NX_PIN_PULL_UP>;
 	nexell,pin-strength = <1>;
 };
 

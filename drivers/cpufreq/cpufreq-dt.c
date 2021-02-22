@@ -154,6 +154,11 @@ static int cpufreq_init(struct cpufreq_policy *policy)
 	const char *name;
 	int ret;
 
+	struct device_node *np = of_find_node_by_path("/");
+	if (np && of_device_is_compatible(np, "allwinner,sun8i-h3")) {
+		policy->transition_delay_us = 2000000;
+	}
+
 	cpu_dev = get_cpu_device(policy->cpu);
 	if (!cpu_dev) {
 		pr_err("failed to get cpu%d device\n", policy->cpu);

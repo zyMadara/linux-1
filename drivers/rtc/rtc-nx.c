@@ -56,14 +56,10 @@ void nx_clkpwr_set_rtc_wakeup_enable(bool enable)
  * local data and macro
  */
 
-#define	RTC_TIME_YEAR			(1970)		/* 1970.01.01 00:00:00
-							 */
-#define RTC_TIME_MAX			0x69546780	/* 2025.12.31 00:00:00
-							 */
-#define RTC_TIME_MIN			0x52c35a80	/* 2014.01.01 00:00:00
-							 */
-#define RTC_TIME_DFT			0x4a9c6400	/* 2009.09.01 00:00:00
-							 */
+#define RTC_TIME_YEAR			(1970)		/* 1970.01.01 */
+#define RTC_TIME_MAX			0x70da8700	/* 2029.12.31 */
+#define RTC_TIME_MIN			0x52c35a80	/* 2014.01.01 */
+#define RTC_TIME_DFT			0x5fee6600	/* 2021.01.01 */
 
 #define	RTC_COUNT_BIT			(0)
 #define	RTC_ALARM_BIT			(1)

@@ -114,20 +114,22 @@
 		};
 
 		serial0:serial@c00a1000 {
-			dmas = <&pl08xdma0 2 0>, <&pl08xdma0 3 0>;
-			dma-names = "tx", "rx";
+			/delete-property/ dmas;
+			/delete-property/ dma-names;
 			status ="okay";
 		};
 
 		serial1:serial@c00a0000 {
-			dmas = <&pl08xdma0 0 0>, <&pl08xdma0 1 0>;
-			dma-names = "tx", "rx";
+			/delete-property/ dmas;
+			/delete-property/ dma-names;
 			pinctrl-0 = <&serial1_pin>, <&serial1_flow_cts>,
 				<&serial1_flow_rts>;
 			status ="okay";
 		};
 
 		serial2:serial@c00a2000 {
+			/delete-property/ dmas;
+			/delete-property/ dma-names;
 			status ="okay";
 		};
 

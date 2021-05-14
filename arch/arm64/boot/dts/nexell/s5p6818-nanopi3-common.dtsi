@@ -855,6 +855,10 @@
 	};
 };
 
+&i2c0_pin {
+	nexell,pin-strength = <NX_PIN_STR1>;
+};
+
 &spi_0 {
 	status = "okay";
 	cs-gpios = <&gpio_c 30 0>;

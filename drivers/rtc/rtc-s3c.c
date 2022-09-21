@@ -617,7 +617,7 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "rtc only supports 100 years\n");
 #endif
 		/* Set the default time. 2012:1:1:12:0:0 */
-		year = 112;
+		year = 122;
 		tm.tm_mon = 0;
 		tm.tm_mday = 1;
 		tm.tm_hour = 12;

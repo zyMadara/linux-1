@@ -602,6 +602,13 @@
 				nexell,pin-pull = <2>;
 				nexell,pin-strength = <0>;
 			};
+
+			ledx_gpio:leds-gpio {
+				nexell,pins ="gpiob-27";
+				nexell,pin-function = <2>;
+				nexell,pin-pull = <2>;
+				nexell,pin-strength = <0>;
+			};
 		};
 
 		scaler@c0066000 {
@@ -609,6 +616,8 @@
 		};
 
 	};	/*** soc ***/
+
+	
 
 	mach: board {
 		compatible = "friendlyelec,board";
@@ -668,6 +677,20 @@
 			gpios = <&gpio_b 12 GPIO_ACTIVE_LOW>;
 			label = "status_led";
 			linux,default-trigger = "heartbeat";
+			linux,default-trigger-delay-ms = <0>;
+		};
+	};
+
+	uflag: gpio-leds
+	{
+		compatible = "gpio-leds";
+		pinctrl-names = "default";
+		pinctrl-0 =<&ledx_gpio>;
+
+		led@2 {
+			gpios = <&gpio_b 27 GPIO_ACTIVE_HIGH>;
+			label = "flag_led";
+			linux,default-trigger = "gpio";
 			linux,default-trigger-delay-ms = <0>;
 		};
 	};

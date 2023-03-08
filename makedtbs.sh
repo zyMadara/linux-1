@@ -1,0 +1,1 @@
+sudo make ARCH=arm64 nanopi3_linux_defconfig CROSS_COMPILE=/usr/gcc-linaro-6.4.1-2018.05-i686_aarch64-linux-gnu/bin/aarch64-linux-gnu- dtbs

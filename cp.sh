@@ -1,0 +1,1 @@
+cp ./arch/arm64/boot/dts/nexell/s5p6818-nanopi3-rev05.dtb ../friendlycore-arm64/boot/
